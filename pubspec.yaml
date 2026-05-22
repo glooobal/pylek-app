@@ -9,6 +9,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_sfsymbols: ^2.0.0
   geocoding: ^4.0.0
   geolocator: ^14.0.2
   shared_preferences: ^2.5.5
@@ -22,3 +23,7 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  fonts:
+    - family: sficonsets
+      fonts:
+        - asset: packages/flutter_sfsymbols/fonts/sficonsets.ttf

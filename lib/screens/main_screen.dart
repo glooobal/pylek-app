@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pylek/components/app_icons.dart';
 import 'package:pylek/screens/alerts_screen.dart';
 import 'package:pylek/screens/forecast_screen.dart';
 import 'package:pylek/screens/home_screen.dart';
@@ -59,12 +60,14 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: colorScheme.background,
       appBar: AppBar(
-        backgroundColor: Colors.black,
-        foregroundColor: Colors.white,
-        surfaceTintColor: Colors.black,
+        backgroundColor: colorScheme.background,
+        foregroundColor: colorScheme.onBackground,
+        surfaceTintColor: colorScheme.background,
         elevation: 0,
         scrolledUnderElevation: 0,
         centerTitle: false,
@@ -93,32 +96,28 @@ class _MainScreenState extends State<MainScreen> {
         type: BottomNavigationBarType.fixed,
         currentIndex: index,
         onTap: _onTabChanged,
-        backgroundColor: Colors.black,
-        selectedItemColor: Colors.white,
-        unselectedItemColor: Colors.white54,
-        // showSelectedLabels: false,
-        // showUnselectedLabels: false,
-        // selectedFontSize: 0,
-        // unselectedFontSize: 0,
-        items: const [
+        backgroundColor: colorScheme.background,
+        selectedItemColor: colorScheme.onBackground,
+        unselectedItemColor: colorScheme.onSurfaceVariant.withOpacity(0.7),
+        items: [
           BottomNavigationBarItem(
-            icon: Icon(Icons.home_rounded),
+            icon: Icon(AppIcons.of(context, AppIconKind.home)),
             label: "Dzisiaj",
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.cloud),
+            icon: Icon(AppIcons.of(context, AppIconKind.forecast)),
             label: "Prognoza",
           ),  
           BottomNavigationBarItem(
-            icon: Icon(Icons.menu_book_rounded),
+            icon: Icon(AppIcons.of(context, AppIconKind.journal)),
             label: "Dzienniczek",
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.notifications_active_rounded),
+            icon: Icon(AppIcons.of(context, AppIconKind.alerts)),
             label: "Alerty",
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.settings),
+            icon: Icon(AppIcons.of(context, AppIconKind.settings)),
             label: "Ustawienia",
           ),
         ],

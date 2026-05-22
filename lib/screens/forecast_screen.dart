@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:pylek/theme/apple_colors.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ForecastScreen extends StatefulWidget {
@@ -132,25 +133,25 @@ class _ForecastScreenState extends State<ForecastScreen> {
     }
   }
 
-  Color categoryColor(String category) {
+  Color categoryColor(String category, ColorScheme colorScheme) {
     switch (category.toLowerCase()) {
       case "bardzo niski":
-        return Colors.green;
+        return AppColors.systemGreen;
 
       case "niski":
-        return Colors.lightGreen;
+        return AppColors.systemGreenLight;
 
       case "umiarkowany":
-        return Colors.orange;
+        return AppColors.systemOrange;
 
       case "wysoki":
-        return Colors.red;
+        return AppColors.systemRed;
 
       case "bardzo wysoki":
-        return Colors.purple;
+        return AppColors.systemPurple;
 
       default:
-        return Colors.grey;
+        return colorScheme.onSurfaceVariant;
     }
   }
 
@@ -159,6 +160,7 @@ class _ForecastScreenState extends State<ForecastScreen> {
   // ─────────────────────────────
 
   Widget _dayCard({
+    required ColorScheme colorScheme,
     required String date,
     required int level,
     required String worstType,
@@ -168,7 +170,7 @@ class _ForecastScreenState extends State<ForecastScreen> {
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
@@ -177,7 +179,7 @@ class _ForecastScreenState extends State<ForecastScreen> {
           // DATE
           Text(
             date,
-            style: const TextStyle(fontSize: 14, color: Colors.grey),
+            style: TextStyle(fontSize: 14, color: colorScheme.onSurfaceVariant),
           ),
 
           const SizedBox(height: 8),
@@ -229,7 +231,7 @@ class _ForecastScreenState extends State<ForecastScreen> {
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      color: categoryColor(category).withOpacity(0.12),
+                      color: categoryColor(category, colorScheme).withOpacity(0.12),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
@@ -237,7 +239,7 @@ class _ForecastScreenState extends State<ForecastScreen> {
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
-                        color: categoryColor(category),
+                        color: categoryColor(category, colorScheme),
                       ),
                     ),
                   ),
@@ -256,22 +258,24 @@ class _ForecastScreenState extends State<ForecastScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     if (loading) {
-      return const Scaffold(
-        backgroundColor: Colors.black,
-        body: Center(child: CircularProgressIndicator()),
+      return Scaffold(
+        backgroundColor: colorScheme.background,
+        body: const Center(child: CircularProgressIndicator()),
       );
     }
 
     if (error != null) {
       return Scaffold(
-        backgroundColor: Colors.black,
+        backgroundColor: colorScheme.background,
         body: Center(child: Text(error!)),
       );
     }
 
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: colorScheme.background,
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: ListView.builder(
@@ -285,6 +289,7 @@ class _ForecastScreenState extends State<ForecastScreen> {
                 "${date['day']}.${date['month']}.${date['year']}";
 
             return _dayCard(
+              colorScheme: colorScheme,
               date: label,
               level: analysis['level'],
               worstType: analysis['worstType'],
