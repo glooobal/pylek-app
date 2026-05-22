@@ -8,10 +8,14 @@ import 'package:pylek/screens/journal_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'dart:developer';
 
 const Color _cardBackground = Color(0xFF202426);
 const Color _secondaryText = Color(0xFF758F9F);
 const Color _primaryText = Color(0xFFFEFEFE);
+const int _tileZoom = 13;
+const double _mercatorOriginShift = 20037508.342789244;
+const double _tileSizeMeters = 40075016.685578488 / (1 << _tileZoom);
 
 String _formatPolishDate(DateTime date) {
   const months = [
@@ -61,6 +65,18 @@ Color _aqiColor(int aqi) {
   if (aqi <= 200) return const Color(0xFFE58100); // Dostateczna
   if (aqi <= 300) return const Color(0xFFE50000); // Zła
   return const Color(0xFF990000); // Bardzo zła
+}
+
+String _tileIdFromCoordinates(double latitude, double longitude) {
+  final clampedLatitude = latitude.clamp(-85.05112878, 85.05112878);
+  final latRadians = clampedLatitude * math.pi / 180;
+  final xMeters = longitude * _mercatorOriginShift / 180;
+  final yMeters = math.log(math.tan(math.pi / 4 + latRadians / 2)) * _mercatorOriginShift / math.pi;
+
+  final tileX = ((xMeters + _mercatorOriginShift) / _tileSizeMeters).floor();
+  final tileY = ((_mercatorOriginShift - yMeters) / _tileSizeMeters).floor();
+
+  return 'wmz${_tileZoom}:x$tileX:y$tileY';
 }
 
 String _shortenCategory(String s) {
@@ -117,6 +133,7 @@ class _HomeScreenState extends State<HomeScreen> {
       }
 
       final resolvedCityName = await _resolveCityName(lat, lng);
+      final tileId = _tileIdFromCoordinates(lat, lng);
 
       final results = await Future.wait([
         _client.functions.invoke(
@@ -124,6 +141,8 @@ class _HomeScreenState extends State<HomeScreen> {
           body: {
             "latitude": lat,
             "longitude": lng,
+            "tile_id": tileId,
+            "tile_zoom": _tileZoom,
           },
         ),
         _client.functions.invoke(
@@ -131,6 +150,8 @@ class _HomeScreenState extends State<HomeScreen> {
           body: {
             "latitude": lat,
             "longitude": lng,
+            "tile_id": tileId,
+            "tile_zoom": _tileZoom,
           },
         ),
       ]);
