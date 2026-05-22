@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:pylek/screens/main_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+import 'package:pylek/screens/main_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -23,7 +24,6 @@ class MyApp extends StatelessWidget {
       title: 'Pyłek',
       theme: ThemeData(
         useMaterial3: true,
-        colorSchemeSeed: Colors.green,
       ),
       home: const MainScreen(),
     );
