@@ -4,7 +4,6 @@ import 'package:pylek/screens/alerts_screen.dart';
 import 'package:pylek/screens/forecast_screen.dart';
 import 'package:pylek/screens/home_screen.dart';
 import 'package:pylek/screens/journal_screen.dart';
-import 'package:pylek/screens/settings_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -23,7 +22,6 @@ class _MainScreenState extends State<MainScreen> {
     ForecastScreen(),
     JournalScreen(),
     AlertsScreen(),
-    SettingsScreen(),
   ];
 
   String _title(int i) {
@@ -36,8 +34,6 @@ class _MainScreenState extends State<MainScreen> {
         return "Dzienniczek";
       case 3:
         return "Alerty";
-      case 4:
-        return "Ustawienia";
       default:
         return "";
     }
@@ -115,10 +111,6 @@ class _MainScreenState extends State<MainScreen> {
           BottomNavigationBarItem(
             icon: Icon(AppIcons.of(context, AppIconKind.alerts)),
             label: "Alerty",
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(AppIcons.of(context, AppIconKind.settings)),
-            label: "Ustawienia",
           ),
         ],
       ),

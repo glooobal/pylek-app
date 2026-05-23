@@ -4,7 +4,10 @@ import 'package:flutter_sfsymbols/flutter_sfsymbols.dart';
 enum AppIconKind {
   air,
   alerts,
+  checkMark,
+  chevronLeft,
   chevronRight,
+  circle,
   feedback,
   forecast,
   home,
@@ -14,7 +17,9 @@ enum AppIconKind {
   grass,
   mail,
   myLocation,
+  search,
   settings,
+  tree,
 }
 
 class AppIcons {
@@ -37,8 +42,14 @@ class AppIcons {
         return SFSymbols.wind;
       case AppIconKind.alerts:
         return SFSymbols.bell_fill;
+      case AppIconKind.checkMark:
+        return SFSymbols.checkmark;
+      case AppIconKind.chevronLeft:
+        return SFSymbols.chevron_left;
       case AppIconKind.chevronRight:
         return SFSymbols.chevron_right;
+      case AppIconKind.circle:
+        return SFSymbols.circle;
       case AppIconKind.feedback:
         return SFSymbols.square_pencil;
       case AppIconKind.forecast:
@@ -52,13 +63,17 @@ class AppIcons {
       case AppIconKind.locationCity:
         return SFSymbols.location_fill;
       case AppIconKind.grass:
-        return SFSymbols.tree;
+        return Icons.grass_rounded;
       case AppIconKind.mail:
         return SFSymbols.envelope_fill;
       case AppIconKind.myLocation:
         return SFSymbols.location_north_fill;
+      case AppIconKind.search:
+        return SFSymbols.search;
       case AppIconKind.settings:
         return SFSymbols.gear;
+      case AppIconKind.tree:
+        return SFSymbols.tree;
     }
   }
 
@@ -68,8 +83,14 @@ class AppIcons {
         return Icons.air_rounded;
       case AppIconKind.alerts:
         return Icons.notifications_active_rounded;
+      case AppIconKind.checkMark:
+        return Icons.check_rounded;
+      case AppIconKind.chevronLeft:
+        return Icons.chevron_left_rounded;
       case AppIconKind.chevronRight:
         return Icons.chevron_right_rounded;
+      case AppIconKind.circle:
+        return Icons.circle_outlined;
       case AppIconKind.feedback:
         return Icons.feedback_rounded;
       case AppIconKind.forecast:
@@ -88,8 +109,12 @@ class AppIcons {
         return Icons.mail_rounded;
       case AppIconKind.myLocation:
         return Icons.my_location_rounded;
+      case AppIconKind.search:
+        return Icons.search_rounded;
       case AppIconKind.settings:
         return Icons.settings_rounded;
+      case AppIconKind.tree:
+        return Icons.park_rounded;
     }
   }
 }

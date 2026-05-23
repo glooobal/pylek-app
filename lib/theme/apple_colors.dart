@@ -3,6 +3,21 @@ import 'package:flutter/material.dart';
 class AppColors {
   AppColors._();
 
+  static Color background(Brightness brightness) =>
+      brightness == Brightness.dark ? backgroundDark : backgroundLight;
+
+  static Color surface(Brightness brightness) =>
+      brightness == Brightness.dark ? surfaceDark : surfaceLight;
+
+  static Color surfaceVariant(Brightness brightness) =>
+      brightness == Brightness.dark ? surfaceVariantDark : surfaceVariantLight;
+
+  static Color primaryText(Brightness brightness) =>
+      brightness == Brightness.dark ? primaryTextDark : primaryTextLight;
+
+  static Color secondaryText(Brightness brightness) =>
+      brightness == Brightness.dark ? secondaryTextDark : secondaryTextLight;
+
   // System semantic colors (Apple-like)
   static const Color systemBlue = Color(0xFF0A84FF);
   static const Color systemGreen = Color(0xFF34C759);
