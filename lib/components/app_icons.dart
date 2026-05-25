@@ -8,6 +8,9 @@ enum AppIconKind {
   chevronLeft,
   chevronRight,
   circle,
+  faceSmiling,
+  faceNeutral,
+  faceFrowning,
   feedback,
   forecast,
   home,
@@ -17,6 +20,7 @@ enum AppIconKind {
   grass,
   mail,
   myLocation,
+  pencil,
   search,
   settings,
   tree,
@@ -50,6 +54,12 @@ class AppIcons {
         return SFSymbols.chevron_right;
       case AppIconKind.circle:
         return SFSymbols.circle;
+      case AppIconKind.faceSmiling:
+        return SFSymbols.smiley_fill;
+      case AppIconKind.faceNeutral:
+        return SFSymbols.smiley_fill;
+      case AppIconKind.faceFrowning:
+        return SFSymbols.smiley_fill;
       case AppIconKind.feedback:
         return SFSymbols.smiley_fill;
       case AppIconKind.forecast:
@@ -68,6 +78,8 @@ class AppIcons {
         return SFSymbols.envelope_fill;
       case AppIconKind.myLocation:
         return SFSymbols.location_north_fill;
+      case AppIconKind.pencil:
+        return SFSymbols.square_pencil;
       case AppIconKind.search:
         return SFSymbols.search;
       case AppIconKind.settings:
@@ -91,6 +103,12 @@ class AppIcons {
         return Icons.chevron_right_rounded;
       case AppIconKind.circle:
         return Icons.circle_outlined;
+      case AppIconKind.faceSmiling:
+        return Icons.emoji_emotions_rounded;
+      case AppIconKind.faceNeutral:
+        return Icons.sentiment_neutral_rounded;
+      case AppIconKind.faceFrowning:
+        return Icons.sentiment_dissatisfied_rounded;
       case AppIconKind.feedback:
         return Icons.mood_rounded;
       case AppIconKind.forecast:
@@ -109,6 +127,8 @@ class AppIcons {
         return Icons.mail_rounded;
       case AppIconKind.myLocation:
         return Icons.my_location_rounded;
+      case AppIconKind.pencil:
+        return Icons.edit_rounded;
       case AppIconKind.search:
         return Icons.search_rounded;
       case AppIconKind.settings:

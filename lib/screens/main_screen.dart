@@ -52,6 +52,7 @@ class _MainScreenState extends State<MainScreen> {
 
   Widget _settingsButton() {
     final colorScheme = Theme.of(context).colorScheme;
+    final isDark = colorScheme.brightness == Brightness.dark;
 
     return GestureDetector(
       onTap: () => _openSettings(),
@@ -59,7 +60,9 @@ class _MainScreenState extends State<MainScreen> {
         width: 42,
         height: 42,
         decoration: BoxDecoration(
-          color: Color.lerp(colorScheme.surfaceVariant, colorScheme.onSurface, 0.12),
+          color: isDark
+              ? Color.lerp(colorScheme.surfaceVariant, colorScheme.onSurface, 0.12)
+              : colorScheme.surfaceVariant,
           shape: BoxShape.circle,
         ),
         child: Icon(

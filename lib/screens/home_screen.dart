@@ -96,112 +96,136 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _init() async {
+    setState(() {
+      loading = true;
+      error = null;
+    });
     try {
-      final prefs = await SharedPreferences.getInstance();
-
-      final mode = await _getLocationMode();
-
-      double lat;
-      double lng;
-      String resolvedCityName;
-
-      if (mode == 'manual') {
-        lat = prefs.getDouble('manual_lat') ?? 52.2297;
-        lng = prefs.getDouble('manual_lng') ?? 21.0122;
-        resolvedCityName = prefs.getString('manual_city_name') ?? 'Twoja lokalizacja';
-      } else {
-        final position = await _tryGetLocation();
-        if (position != null) {
-          lat = position.latitude;
-          lng = position.longitude;
-          resolvedCityName = await _resolveCityName(lat, lng);
-        } else {
-          lat = prefs.getDouble('auto_lat') ?? 52.2297;
-          lng = prefs.getDouble('auto_lng') ?? 21.0122;
-          resolvedCityName = prefs.getString('auto_city_name') ?? 'Twoja lokalizacja';
-        }
-      }
-      final tileId = _tileIdFromCoordinates(lat, lng);
-
-      final results = await Future.wait([
-        _client.functions.invoke(
-          'get_pollen',
-          body: {
-            "latitude": lat,
-            "longitude": lng,
-            "tile_id": tileId,
-            "tile_zoom": _tileZoom,
-          },
-        ),
-        _client.functions.invoke(
-          'get_aq',
-          body: {
-            "latitude": lat,
-            "longitude": lng,
-            "tile_id": tileId,
-            "tile_zoom": _tileZoom,
-          },
-        ),
-      ]);
-
-      final pollenRes = results[0];
-      final pollenData = pollenRes.data['data'];
-      final pollenDateLabel = formatPollenFetchDate(pollenRes.data['fetched_at']);
-      final today = pollenData['dailyInfo'][0];
-      final pollenTypes = today['pollenTypeInfo'] ?? [];
-      final plants = today['plantInfo'] ?? [];
-      final selectedAllergens = prefs.getStringList('selected_allergens') ?? [];
-      final hasSelected = selectedAllergens.isNotEmpty;
-      final allergensToShow = hasSelected
-          ? selectedAllergens
-          : allergenGroups.expand((g) => g.items).map((o) => o.name).toList();
-      final pollenCard = resolvePollenCard(
-        pollenTypes: pollenTypes,
-        plants: plants,
-        selectedAllergens: selectedAllergens,
-      );
-      final allergenCards = buildSelectedAllergenCards(
-        selectedAllergens: allergensToShow,
-        pollenTypes: pollenTypes,
-        plants: plants,
-      );
-
-      final aqRes = results[1];
-      final aqData = aqRes.data['data'];
-      final fetchedAtAir = _formatFetchTime(aqRes.data['fetched_at']);
-      final index = aqData['indexes']?[0];
-      final aqi = index?['aqi'] ?? 0;
-      final category = index?['category'] ?? "Brak danych";
-      final pollutants = aqData['pollutants'] ?? [];
-      final builtPollutantCards = buildPollutantCards(pollutants);
-
-      if (!mounted) return;
-
-      final title = insightSeverityTitle(pollenCard.colorScore);
-      final desc = buildInsightDescription(pollenCard.colorScore, pollenTypes, plants, selectedAllergens);
-      final rec = buildInsightRecommendation(pollenCard.colorScore);
-
-      setState(() {
-        pollenColorScore = pollenCard.colorScore;
-        pollenFetchedAt = pollenDateLabel;
-        insightTitle = title;
-        insightDescription = desc;
-        insightRecommendation = rec;
-        hasSelectedAllergens = hasSelected;
-        allergenPollenCards = allergenCards;
-        airAqi = aqi;
-        airCategory = category;
-        airFetchedAt = fetchedAtAir;
-        pollutantCards = builtPollutantCards;
-        cityName = resolvedCityName;
-        loading = false;
-      });
+      await _fetchData();
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         loading = false;
         error = e.toString();
       });
     }
+  }
+
+  Future<void> _refresh() async {
+    try {
+      await _fetchData();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text("Nie udało się odświeżyć danych."),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  Future<void> _fetchData() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    final mode = await _getLocationMode();
+
+    double lat;
+    double lng;
+    String resolvedCityName;
+
+    if (mode == 'manual') {
+      lat = prefs.getDouble('manual_lat') ?? 52.2297;
+      lng = prefs.getDouble('manual_lng') ?? 21.0122;
+      resolvedCityName = prefs.getString('manual_city_name') ?? 'Twoja lokalizacja';
+    } else {
+      final position = await _tryGetLocation();
+      if (position != null) {
+        lat = position.latitude;
+        lng = position.longitude;
+        resolvedCityName = await _resolveCityName(lat, lng);
+      } else {
+        lat = prefs.getDouble('auto_lat') ?? 52.2297;
+        lng = prefs.getDouble('auto_lng') ?? 21.0122;
+        resolvedCityName = prefs.getString('auto_city_name') ?? 'Twoja lokalizacja';
+      }
+    }
+    final tileId = _tileIdFromCoordinates(lat, lng);
+
+    final results = await Future.wait([
+      _client.functions.invoke(
+        'get_pollen',
+        body: {
+          "latitude": lat,
+          "longitude": lng,
+          "tile_id": tileId,
+          "tile_zoom": _tileZoom,
+        },
+      ),
+      _client.functions.invoke(
+        'get_aq',
+        body: {
+          "latitude": lat,
+          "longitude": lng,
+          "tile_id": tileId,
+          "tile_zoom": _tileZoom,
+        },
+      ),
+    ]);
+
+    final pollenRes = results[0];
+    final pollenData = pollenRes.data['data'];
+    final pollenDateLabel = formatPollenFetchDate(pollenRes.data['fetched_at']);
+    final today = pollenData['dailyInfo'][0];
+    final pollenTypes = today['pollenTypeInfo'] ?? [];
+    final plants = today['plantInfo'] ?? [];
+    final selectedAllergens = prefs.getStringList('selected_allergens') ?? [];
+    final hasSelected = selectedAllergens.isNotEmpty;
+    final allergensToShow = hasSelected
+        ? selectedAllergens
+        : allergenGroups.expand((g) => g.items).map((o) => o.name).toList();
+    final pollenCard = resolvePollenCard(
+      pollenTypes: pollenTypes,
+      plants: plants,
+      selectedAllergens: selectedAllergens,
+    );
+    final allergenCards = buildSelectedAllergenCards(
+      selectedAllergens: allergensToShow,
+      pollenTypes: pollenTypes,
+      plants: plants,
+    );
+
+    final aqRes = results[1];
+    final aqData = aqRes.data['data'];
+    final fetchedAtAir = _formatFetchTime(aqRes.data['fetched_at']);
+    final index = aqData['indexes']?[0];
+    final aqi = index?['aqi'] ?? 0;
+    final category = index?['category'] ?? "Brak danych";
+    final pollutants = aqData['pollutants'] ?? [];
+    final builtPollutantCards = buildPollutantCards(pollutants);
+
+    if (!mounted) return;
+
+    final title = insightSeverityTitle(pollenCard.colorScore);
+    final desc = buildInsightDescription(pollenCard.colorScore, pollenTypes, plants, selectedAllergens);
+    final rec = buildInsightRecommendation(pollenCard.colorScore);
+
+    setState(() {
+      pollenColorScore = pollenCard.colorScore;
+      pollenFetchedAt = pollenDateLabel;
+      insightTitle = title;
+      insightDescription = desc;
+      insightRecommendation = rec;
+      hasSelectedAllergens = hasSelected;
+      allergenPollenCards = allergenCards;
+      airAqi = aqi;
+      airCategory = category;
+      airFetchedAt = fetchedAtAir;
+      pollutantCards = builtPollutantCards;
+      cityName = resolvedCityName;
+      loading = false;
+    });
   }
 
 
@@ -312,7 +336,11 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       backgroundColor: colorScheme.background,
       body: SafeArea(
-        child: ListView(
+        child: RefreshIndicator(
+          onRefresh: _refresh,
+          displacement: 60,
+          color: AppColors.systemGray,
+          child: ListView(
           padding: const EdgeInsets.symmetric(horizontal: 20),
           physics: const BouncingScrollPhysics(
             parent: AlwaysScrollableScrollPhysics(),
@@ -531,6 +559,7 @@ class _HomeScreenState extends State<HomeScreen> {
             SizedBox(height: 32),
           ],
         ),
+          ),
       ),
     );
   }

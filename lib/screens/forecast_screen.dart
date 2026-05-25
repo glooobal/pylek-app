@@ -4,6 +4,7 @@ import 'package:geocoding/geocoding.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'package:pylek/theme/apple_colors.dart';
 import 'package:pylek/components/app_icons.dart';
 import 'package:pylek/components/insight_card.dart';
 import 'package:pylek/components/small_card.dart';
@@ -115,51 +116,71 @@ class _ForecastScreenState extends State<ForecastScreen> {
     });
 
     try {
-      final prefs = await SharedPreferences.getInstance();
-      selectedAllergens = prefs.getStringList('selected_allergens') ?? [];
-
-      final mode = prefs.getString('location_mode') ?? 'auto';
-      double lat;
-      double lng;
-      String resolvedCityName;
-
-      if (mode == 'manual') {
-        lat = prefs.getDouble('manual_lat') ?? 52.2297;
-        lng = prefs.getDouble('manual_lng') ?? 21.0122;
-        resolvedCityName = prefs.getString('manual_city_name') ?? 'Twoja lokalizacja';
-      } else {
-        final position = await _tryGetLocation();
-        if (position != null) {
-          lat = position.latitude;
-          lng = position.longitude;
-          resolvedCityName = await _resolveCityName(lat, lng);
-        } else {
-          lat = prefs.getDouble('auto_lat') ?? 52.2297;
-          lng = prefs.getDouble('auto_lng') ?? 21.0122;
-          resolvedCityName = prefs.getString('auto_city_name') ?? 'Twoja lokalizacja';
-        }
-      }
-
-      final pollenRes = await _client.functions.invoke(
-        'get_pollen',
-        body: {"latitude": lat, "longitude": lng},
-      );
-
-      final pollenData = pollenRes.data['data'];
-      dailyInfo = pollenData['dailyInfo'] ?? [];
-
-      if (!mounted) return;
-
-      setState(() {
-        cityName = resolvedCityName;
-        loading = false;
-      });
+      await _fetchData();
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         loading = false;
         error = e.toString();
       });
     }
+  }
+
+  Future<void> _refresh() async {
+    try {
+      await _fetchData();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text("Nie udało się odświeżyć danych."),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  Future<void> _fetchData() async {
+    final prefs = await SharedPreferences.getInstance();
+    selectedAllergens = prefs.getStringList('selected_allergens') ?? [];
+
+    final mode = prefs.getString('location_mode') ?? 'auto';
+    double lat;
+    double lng;
+    String resolvedCityName;
+
+    if (mode == 'manual') {
+      lat = prefs.getDouble('manual_lat') ?? 52.2297;
+      lng = prefs.getDouble('manual_lng') ?? 21.0122;
+      resolvedCityName = prefs.getString('manual_city_name') ?? 'Twoja lokalizacja';
+    } else {
+      final position = await _tryGetLocation();
+      if (position != null) {
+        lat = position.latitude;
+        lng = position.longitude;
+        resolvedCityName = await _resolveCityName(lat, lng);
+      } else {
+        lat = prefs.getDouble('auto_lat') ?? 52.2297;
+        lng = prefs.getDouble('auto_lng') ?? 21.0122;
+        resolvedCityName = prefs.getString('auto_city_name') ?? 'Twoja lokalizacja';
+      }
+    }
+
+    final pollenRes = await _client.functions.invoke(
+      'get_pollen',
+      body: {"latitude": lat, "longitude": lng},
+    );
+
+    final pollenData = pollenRes.data['data'];
+    dailyInfo = pollenData['dailyInfo'] ?? [];
+
+    if (!mounted) return;
+
+    setState(() {
+      cityName = resolvedCityName;
+      loading = false;
+    });
   }
 
   Future<Position?> _tryGetLocation() async {
@@ -216,8 +237,12 @@ class _ForecastScreenState extends State<ForecastScreen> {
     return Scaffold(
       backgroundColor: colorScheme.background,
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: RefreshIndicator(
+          onRefresh: _refresh,
+          displacement: 60,
+          color: AppColors.systemGray,
+          child: ListView(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
           physics: const BouncingScrollPhysics(
             parent: AlwaysScrollableScrollPhysics(),
           ),
@@ -276,7 +301,9 @@ class _ForecastScreenState extends State<ForecastScreen> {
                             onTap: () => setState(() => selectedDayIndex = i),
                             child: AnimatedOpacity(
                               duration: const Duration(milliseconds: 200),
-                              opacity: selectedDayIndex == i ? 1.0 : 0.65,
+                              opacity: selectedDayIndex == i
+                                  ? 1.0
+                                  : (colorScheme.brightness == Brightness.dark ? 0.65 : 0.45),
                               child: SizedBox(
                                 width: cardWidth,
                                 child: SmallCard(
@@ -301,6 +328,7 @@ class _ForecastScreenState extends State<ForecastScreen> {
             const SizedBox(height: 32),
           ],
         ),
+          ),
       ),
     );
   }
