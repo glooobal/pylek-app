@@ -67,6 +67,17 @@ class AllergenPollenCardData {
   });
 }
 
+enum InsightSeverity { none, veryLow, low, moderate, high, veryHigh }
+
+InsightSeverity resolveInsightSeverity(int colorScore) {
+  if (colorScore <= 0) return InsightSeverity.none;
+  if (colorScore <= 20) return InsightSeverity.veryLow;
+  if (colorScore <= 40) return InsightSeverity.low;
+  if (colorScore <= 60) return InsightSeverity.moderate;
+  if (colorScore <= 80) return InsightSeverity.high;
+  return InsightSeverity.veryHigh;
+}
+
 int _compareAllergenCardPriority(AllergenPollenCardData left, AllergenPollenCardData right) {
   final scoreComparison = right.colorScore.compareTo(left.colorScore);
   if (scoreComparison != 0) {
@@ -163,12 +174,20 @@ int colorScoreFromNormalizedUpi(int normalized) {
 }
 
 Color pollenSeverityColor(int colorScore) {
-  if (colorScore <= 0) return AppColors.systemGray;
-  if (colorScore <= 20) return AppColors.systemGreenLight;
-  if (colorScore <= 40) return AppColors.systemGreen;
-  if (colorScore <= 60) return AppColors.systemOrange;
-  if (colorScore <= 80) return AppColors.systemRed;
-  return AppColors.systemRedDark;
+  switch (resolveInsightSeverity(colorScore)) {
+    case InsightSeverity.none:
+      return AppColors.systemGray;
+    case InsightSeverity.veryLow:
+      return AppColors.systemGreenLight;
+    case InsightSeverity.low:
+      return AppColors.systemGreen;
+    case InsightSeverity.moderate:
+      return AppColors.systemOrange;
+    case InsightSeverity.high:
+      return AppColors.systemRed;
+    case InsightSeverity.veryHigh:
+      return AppColors.systemRedDark;
+  }
 }
 
 Set<String> _plantCodesForSelections(List<String> selectedAllergens) {
@@ -533,4 +552,198 @@ List<AllergenPollenCardData> buildSelectedAllergenCards({
 
   cards.sort(_compareAllergenCardPriority);
   return cards;
+}
+
+bool _selectionIncludesTrees(List<String> selectedAllergens) {
+  return selectedAllergens.any((name) =>
+    name == 'Brzoza' ||
+    name == 'Dąb' ||
+    name == 'Jesion' ||
+    name == 'Leszczyna' ||
+    name == 'Olcha' ||
+    name == 'Oliwka' ||
+    name == 'Sosna' ||
+    name == 'Topola');
+}
+
+bool _selectionIncludesWeeds(List<String> selectedAllergens) {
+  return selectedAllergens.any(
+    (name) => name == 'Ambrozja' || name == 'Bylica',
+  );
+}
+
+String? pollenRecommendation(
+  List<dynamic> pollenTypes,
+  List<String> selectedAllergens,
+) {
+  if (selectedAllergens.isEmpty) return null;
+
+  final hasTrees = _selectionIncludesTrees(selectedAllergens);
+  final hasGrasses = _selectionIncludesGrasses(selectedAllergens);
+  final hasWeeds = _selectionIncludesWeeds(selectedAllergens);
+
+  String? bestRec;
+  int bestValue = -1;
+
+  for (final pollenType in pollenTypes) {
+    if (pollenType is! Map) continue;
+
+    final code = (pollenType['code'] as String?)?.toUpperCase();
+    if (code == null) continue;
+
+    final matches = (code == 'TREE' && hasTrees) ||
+        (code == 'GRASS' && hasGrasses) ||
+        (code == 'WEED' && hasWeeds);
+    if (!matches) continue;
+
+    final indexInfo = pollenType['indexInfo'];
+    final value = (indexInfo is Map) ? indexInfo['value'] : null;
+    final intValue =
+        (value is int) ? value : ((value is num) ? value.round() : 0);
+
+    if (intValue < bestValue) continue;
+
+    final recommendations = pollenType['healthRecommendations'];
+    if (recommendations is! List || recommendations.isEmpty) continue;
+
+    bestValue = intValue;
+    bestRec = recommendations[0].toString();
+  }
+
+  return bestRec;
+}
+
+String insightSeverityTitle(int colorScore) {
+  if (colorScore <= 0) return 'Nie powinieneś dziś czuć objawów';
+  if (colorScore <= 20) return 'To powinien być spokojny dzień';
+  if (colorScore <= 40) return 'Lekkie objawy alergii';
+  if (colorScore <= 60) return 'Nasilone objawy alergii';
+  if (colorScore <= 80) return 'Mocne objawy alergii';
+  return 'Bardzo mocne objawy alergii';
+}
+
+String buildInsightDescription(
+  int colorScore,
+  List<dynamic> pollenTypes,
+  List<dynamic> plants,
+  List<String> selectedAllergens,
+) {
+  final tier = resolveInsightSeverity(colorScore);
+
+  if (tier.index >= InsightSeverity.moderate.index) {
+    final matches = _activeAllergenMatches(plants, pollenTypes, selectedAllergens);
+
+    if (matches.isNotEmpty) {
+      final names = matches.take(2).map((m) => m.name).toList();
+      if (names.length == 1) return 'Najsilniej pylą dziś ${names[0]}.';
+      return 'Najsilniej pylą dziś ${names[0]} i ${names[1]}.';
+    }
+
+    final hasTrees = _selectionIncludesTrees(selectedAllergens);
+    final hasGrasses = _selectionIncludesGrasses(selectedAllergens);
+    final hasWeeds = _selectionIncludesWeeds(selectedAllergens);
+
+    final activeCategories = <String>[];
+
+    for (final entry in pollenTypes) {
+      if (entry is! Map) continue;
+      final code = (entry['code'] as String?)?.toUpperCase();
+      if (code == null) continue;
+
+      final matchCategory = (code == 'TREE' && hasTrees) ||
+          (code == 'GRASS' && hasGrasses) ||
+          (code == 'WEED' && hasWeeds);
+      if (!matchCategory) continue;
+
+      final idx = entry['indexInfo'];
+      if (idx is! Map) continue;
+      final v = idx['value'];
+      final intVal = (v is int) ? v : ((v is num) ? v.round() : 0);
+      if (intVal <= 0) continue;
+
+      final name = entry['displayName'] as String? ?? '';
+      activeCategories.add(name.isNotEmpty ? name.toLowerCase() : code.toLowerCase());
+    }
+
+    if (activeCategories.isNotEmpty) {
+      if (activeCategories.length == 1) return 'Najsilniej pylą dziś ${activeCategories[0]}.';
+      return 'Najsilniej pylą dziś ${activeCategories[0]} i ${activeCategories[1]}.';
+    }
+
+    if (tier == InsightSeverity.moderate) {
+      return 'Wybrane alergeny mogą dziś powodować lekkie objawy.';
+    }
+    return 'Podwyższone pylenie może dziś nasilać objawy.';
+  }
+
+  switch (tier) {
+    case InsightSeverity.none:
+      return 'Nie powinieneś dziś czuć objawów alergii';
+    case InsightSeverity.veryLow:
+      return 'Możesz dziś odczuwać delikatne objawy alergii.';
+    case InsightSeverity.low:
+      return 'Dzisiaj możesz odczuwać lekkie objawy alergii.';
+    default:
+      return 'Pylenie nie powinno dziś przeszkadzać.';
+  }
+}
+
+List<({String name, int value})> _activeAllergenMatches(
+  List<dynamic> plants,
+  List<dynamic> pollenTypes,
+  List<String> selectedAllergens,
+) {
+  final matches = <({String name, int value})>[];
+
+  for (final allergen in selectedAllergens) {
+    int bestValue = 0;
+    String bestName = '';
+
+    for (final plant in plants) {
+      if (plant is! Map) continue;
+      if (!_plantMatchesAllergen(plant, allergen)) continue;
+
+      final value = _readIndexValue(plant['indexInfo']);
+      if (value == null || value <= bestValue) continue;
+
+      bestValue = value;
+      bestName = (plant['displayName'] as String? ?? '').toLowerCase();
+    }
+
+    if (allergen == 'Trawy (ogólnie)' || allergen == 'Trawy') {
+      for (final pollenType in pollenTypes) {
+        if (pollenType is! Map) continue;
+        if (!_pollenTypeMatchesAllergen(pollenType, allergen)) continue;
+
+        final value = _readIndexValue(pollenType['indexInfo']);
+        if (value == null || value <= bestValue) continue;
+
+        bestValue = value;
+        bestName = (pollenType['displayName'] as String? ?? 'trawy').toLowerCase();
+      }
+    }
+
+    if (bestValue > 0 && bestName.isNotEmpty) {
+      matches.add((name: bestName, value: bestValue));
+    }
+  }
+
+  matches.sort((a, b) => b.value.compareTo(a.value));
+  return matches;
+}
+
+String buildInsightRecommendation(int colorScore) {
+  switch (resolveInsightSeverity(colorScore)) {
+    case InsightSeverity.none:
+    case InsightSeverity.veryLow:
+      return 'Ale to dobry dzień na aktywność na świeżym powietrzu.';
+    case InsightSeverity.low:
+      return 'Warunki pozostają dziś raczej korzystne.';
+    case InsightSeverity.moderate:
+      return 'Warto ograniczyć dłuższy pobyt na zewnątrz.';
+    case InsightSeverity.high:
+      return 'Po powrocie do domu warto umyć włosy i twarz.';
+    case InsightSeverity.veryHigh:
+      return 'Jeśli możesz, ogranicz dziś aktywność na zewnątrz.';
+  }
 }

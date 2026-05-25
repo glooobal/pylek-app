@@ -12,6 +12,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:pylek/screens/alerts_screen.dart';
 import 'package:pylek/screens/journal_screen.dart';
 
+import 'package:pylek/components/insight_card.dart';
 import 'package:pylek/components/small_card.dart';
 import 'package:pylek/utils/pollen_home.dart';
 import 'package:pylek/utils/air_quality_home.dart';
@@ -66,10 +67,11 @@ class _HomeScreenState extends State<HomeScreen> {
   bool loading = true;
   String? error;
 
-  String pollenCardValue = '';
-  String pollenCardSubtitle = '';
   int pollenColorScore = 0;
   String pollenFetchedAt = '';
+  String insightTitle = '';
+  String insightDescription = '';
+  String insightRecommendation = '';
   List<AllergenPollenCardData> allergenPollenCards = [];
   List<PollutantCardData> pollutantCards = [];
 
@@ -168,11 +170,16 @@ class _HomeScreenState extends State<HomeScreen> {
 
       if (!mounted) return;
 
+      final title = insightSeverityTitle(pollenCard.colorScore);
+      final desc = buildInsightDescription(pollenCard.colorScore, pollenTypes, plants, selectedAllergens);
+      final rec = buildInsightRecommendation(pollenCard.colorScore);
+
       setState(() {
-        pollenCardValue = pollenCard.valueLabel;
-        pollenCardSubtitle = pollenCard.subtitle;
         pollenColorScore = pollenCard.colorScore;
         pollenFetchedAt = pollenDateLabel;
+        insightTitle = title;
+        insightDescription = desc;
+        insightRecommendation = rec;
         allergenPollenCards = allergenCards;
         airAqi = aqi;
         airCategory = category;
@@ -304,10 +311,11 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
 
-            SmallCard(
-              title: "Pylenie roślin",
-              value: pollenCardValue,
-              subtitle: pollenCardSubtitle,
+            InsightCard(
+              label: "Podsumowanie",
+              title: insightTitle,
+              description: insightDescription,
+              recommendation: insightRecommendation,
               iconKind: AppIconKind.grass,
               fetchedAt: pollenFetchedAt.isEmpty ? null : pollenFetchedAt,
               badgeForeground: pollenSeverityColor(pollenColorScore),
