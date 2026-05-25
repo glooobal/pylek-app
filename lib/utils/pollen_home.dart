@@ -614,7 +614,7 @@ String? pollenRecommendation(
 }
 
 String insightSeverityTitle(int colorScore) {
-  if (colorScore <= 0) return 'Nie powinieneś dziś czuć objawów';
+  if (colorScore <= 0) return 'Nie powinieneś czuć objawów';
   if (colorScore <= 20) return 'To powinien być spokojny dzień';
   if (colorScore <= 40) return 'Lekkie objawy alergii';
   if (colorScore <= 60) return 'Nasilone objawy alergii';
@@ -635,8 +635,8 @@ String buildInsightDescription(
 
     if (matches.isNotEmpty) {
       final names = matches.take(2).map((m) => m.name).toList();
-      if (names.length == 1) return 'Najsilniej pylą dziś ${names[0]}.';
-      return 'Najsilniej pylą dziś ${names[0]} i ${names[1]}.';
+      if (names.length == 1) return 'Najsilniej pylą ${names[0]}.';
+      return 'Najsilniej pylą ${names[0]} i ${names[1]}.';
     }
 
     final hasTrees = _selectionIncludesTrees(selectedAllergens);
@@ -666,25 +666,25 @@ String buildInsightDescription(
     }
 
     if (activeCategories.isNotEmpty) {
-      if (activeCategories.length == 1) return 'Najsilniej pylą dziś ${activeCategories[0]}.';
-      return 'Najsilniej pylą dziś ${activeCategories[0]} i ${activeCategories[1]}.';
+      if (activeCategories.length == 1) return 'Najsilniej pylą ${activeCategories[0]}.';
+      return 'Najsilniej pylą ${activeCategories[0]} i ${activeCategories[1]}.';
     }
 
     if (tier == InsightSeverity.moderate) {
-      return 'Niektóre alergeny mogą dziś powodować objawy.';
+      return 'Niektóre alergeny mogą powodować objawy.';
     }
-    return 'Podwyższone pylenie może dziś nasilać objawy.';
+    return 'Podwyższone pylenie może nasilać objawy.';
   }
 
   switch (tier) {
     case InsightSeverity.none:
-      return 'Nie powinieneś dziś czuć objawów alergii';
+      return 'Nie powinieneś czuć objawów alergii';
     case InsightSeverity.veryLow:
-      return 'Możesz dziś odczuwać delikatne objawy alergii.';
+      return 'Możesz odczuwać delikatne objawy alergii.';
     case InsightSeverity.low:
-      return 'Dzisiaj możesz odczuwać lekkie objawy alergii.';
+      return 'Możesz odczuwać lekkie objawy alergii.';
     default:
-      return 'Pylenie nie powinno dziś przeszkadzać.';
+      return 'Pylenie nie powinno przeszkadzać.';
   }
 }
 
@@ -738,12 +738,12 @@ String buildInsightRecommendation(int colorScore) {
     case InsightSeverity.veryLow:
       return 'To dobry dzień na aktywność na świeżym powietrzu.';
     case InsightSeverity.low:
-      return 'Warunki pozostają dziś raczej korzystne.';
+      return 'Możesz odczuwać objawy, ale nie powinny być one uciążliwe.';
     case InsightSeverity.moderate:
       return 'Warto ograniczyć dłuższy pobyt na zewnątrz.';
     case InsightSeverity.high:
       return 'Po powrocie do domu warto umyć włosy i twarz.';
     case InsightSeverity.veryHigh:
-      return 'Jeśli możesz, ogranicz dziś aktywność na zewnątrz.';
+      return 'Jeśli możesz, ogranicz aktywność na zewnątrz.';
   }
 }

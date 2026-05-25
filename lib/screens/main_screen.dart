@@ -59,7 +59,7 @@ class _MainScreenState extends State<MainScreen> {
         width: 42,
         height: 42,
         decoration: BoxDecoration(
-          color: colorScheme.surfaceVariant,
+          color: Color.lerp(colorScheme.surfaceVariant, colorScheme.onSurface, 0.12),
           shape: BoxShape.circle,
         ),
         child: Icon(

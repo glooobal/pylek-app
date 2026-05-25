@@ -325,7 +325,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Text(
                 cityName,
                 style: TextStyle(
-                  fontSize: 18,
+                  fontSize: 24,
                   height: 1,
                   fontWeight: FontWeight.w700,
                   color: colorScheme.onBackground,
@@ -335,7 +335,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
 
             InsightCard(
-              label: "Podsumowanie",
+              label: "Dzisiejsze podsumowanie",
               title: insightTitle,
               description: insightDescription,
               recommendation: insightRecommendation,
