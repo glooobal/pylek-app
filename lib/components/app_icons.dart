@@ -51,7 +51,7 @@ class AppIcons {
       case AppIconKind.circle:
         return SFSymbols.circle;
       case AppIconKind.feedback:
-        return SFSymbols.square_pencil;
+        return SFSymbols.smiley_fill;
       case AppIconKind.forecast:
         return SFSymbols.cloud_fill;
       case AppIconKind.home:
@@ -92,7 +92,7 @@ class AppIcons {
       case AppIconKind.circle:
         return Icons.circle_outlined;
       case AppIconKind.feedback:
-        return Icons.feedback_rounded;
+        return Icons.mood_rounded;
       case AppIconKind.forecast:
         return Icons.cloud_rounded;
       case AppIconKind.home:

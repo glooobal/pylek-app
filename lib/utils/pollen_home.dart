@@ -671,7 +671,7 @@ String buildInsightDescription(
     }
 
     if (tier == InsightSeverity.moderate) {
-      return 'Wybrane alergeny mogą dziś powodować lekkie objawy.';
+      return 'Niektóre alergeny mogą dziś powodować objawy.';
     }
     return 'Podwyższone pylenie może dziś nasilać objawy.';
   }
@@ -736,7 +736,7 @@ String buildInsightRecommendation(int colorScore) {
   switch (resolveInsightSeverity(colorScore)) {
     case InsightSeverity.none:
     case InsightSeverity.veryLow:
-      return 'Ale to dobry dzień na aktywność na świeżym powietrzu.';
+      return 'To dobry dzień na aktywność na świeżym powietrzu.';
     case InsightSeverity.low:
       return 'Warunki pozostają dziś raczej korzystne.';
     case InsightSeverity.moderate:

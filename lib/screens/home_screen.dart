@@ -10,10 +10,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:pylek/screens/alerts_screen.dart';
+import 'package:pylek/screens/allergen_selection_screen.dart';
 import 'package:pylek/screens/journal_screen.dart';
 
 import 'package:pylek/components/insight_card.dart';
 import 'package:pylek/components/small_card.dart';
+import 'package:pylek/utils/allergen_data.dart';
 import 'package:pylek/utils/pollen_home.dart';
 import 'package:pylek/utils/air_quality_home.dart';
 
@@ -72,6 +74,7 @@ class _HomeScreenState extends State<HomeScreen> {
   String insightTitle = '';
   String insightDescription = '';
   String insightRecommendation = '';
+  bool hasSelectedAllergens = false;
   List<AllergenPollenCardData> allergenPollenCards = [];
   List<PollutantCardData> pollutantCards = [];
 
@@ -148,13 +151,17 @@ class _HomeScreenState extends State<HomeScreen> {
       final pollenTypes = today['pollenTypeInfo'] ?? [];
       final plants = today['plantInfo'] ?? [];
       final selectedAllergens = prefs.getStringList('selected_allergens') ?? [];
+      final hasSelected = selectedAllergens.isNotEmpty;
+      final allergensToShow = hasSelected
+          ? selectedAllergens
+          : allergenGroups.expand((g) => g.items).map((o) => o.name).toList();
       final pollenCard = resolvePollenCard(
         pollenTypes: pollenTypes,
         plants: plants,
         selectedAllergens: selectedAllergens,
       );
       final allergenCards = buildSelectedAllergenCards(
-        selectedAllergens: selectedAllergens,
+        selectedAllergens: allergensToShow,
         pollenTypes: pollenTypes,
         plants: plants,
       );
@@ -180,6 +187,7 @@ class _HomeScreenState extends State<HomeScreen> {
         insightTitle = title;
         insightDescription = desc;
         insightRecommendation = rec;
+        hasSelectedAllergens = hasSelected;
         allergenPollenCards = allergenCards;
         airAqi = aqi;
         airCategory = category;
@@ -261,6 +269,21 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  void _openAllergenSelection() async {
+    final prefs = await SharedPreferences.getInstance();
+    final selected = prefs.getStringList('selected_allergens') ?? [];
+
+    if (!mounted) return;
+
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => AllergenSelectionScreen(initialAllergens: selected),
+      ),
+    );
+
+    _init();
+  }
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -322,20 +345,36 @@ class _HomeScreenState extends State<HomeScreen> {
               badgeBackground: pollenSeverityColor(pollenColorScore).withOpacity(0.14),
             ),
 
-            SizedBox(height: 32),
-
             if (allergenPollenCards.isNotEmpty) ...[
+              SizedBox(height: 32),
+
               Padding(
-                  padding: EdgeInsets.only(bottom: 24),
-                  child: Text(
-                    "Twoje alergeny",
-                    style: TextStyle(
-                    fontSize: 18,
-                    height: 1,
-                    fontWeight: FontWeight.w700,
-                    color: colorScheme.onBackground,
-                    letterSpacing: -0.5,
-                  ),
+                padding: EdgeInsets.only(bottom: 24),
+                child: Row(
+                  children: [
+                    Text(
+                      hasSelectedAllergens ? "Twoje alergeny" : "Alergeny",
+                      style: TextStyle(
+                      fontSize: 18,
+                      height: 1,
+                      fontWeight: FontWeight.w700,
+                      color: colorScheme.onSurface,
+                      letterSpacing: -0.5,
+                    ),
+                    ),
+                    const Spacer(),
+                    GestureDetector(
+                      onTap: _openAllergenSelection,
+                      child: Text(
+                        'Edytuj',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.systemOrange,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
 

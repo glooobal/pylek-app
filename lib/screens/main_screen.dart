@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:pylek/components/app_icons.dart';
+import 'package:pylek/theme/apple_colors.dart';
 import 'package:pylek/screens/alerts_screen.dart';
 import 'package:pylek/screens/forecast_screen.dart';
 import 'package:pylek/screens/home_screen.dart';
 import 'package:pylek/screens/journal_screen.dart';
+import 'package:pylek/screens/settings_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -48,6 +50,33 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
+  Widget _settingsButton() {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return GestureDetector(
+      onTap: () => _openSettings(),
+      child: Container(
+        width: 42,
+        height: 42,
+        decoration: BoxDecoration(
+          color: colorScheme.surfaceVariant,
+          shape: BoxShape.circle,
+        ),
+        child: Icon(
+          AppIcons.of(context, AppIconKind.settings),
+          size: 24,
+          color: AppColors.systemGray,
+        ),
+      ),
+    );
+  }
+
+  void _openSettings() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const SettingsScreen()),
+    );
+  }
+
   @override
   void dispose() {
     _pageController.dispose();
@@ -80,6 +109,12 @@ class _MainScreenState extends State<MainScreen> {
           ),
         ),
         titleSpacing: 0,
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 20),
+            child: _settingsButton(),
+          ),
+        ],
       ),
       body: PageView(
         controller: _pageController,

@@ -1,0 +1,465 @@
+import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+import 'package:pylek/components/app_icons.dart';
+import 'package:pylek/components/home_card_badge.dart';
+import 'package:pylek/theme/apple_colors.dart';
+import 'package:pylek/screens/allergen_selection_screen.dart';
+import 'package:pylek/screens/city_selection_screen.dart';
+
+class SettingsScreen extends StatefulWidget {
+  const SettingsScreen({super.key});
+
+  @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> {
+  List<String> _selectedAllergens = [];
+  String _locationMode = 'auto';
+  String _cityName = 'Twoja lokalizacja';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSettings();
+  }
+
+  Future<void> _loadSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _selectedAllergens = prefs.getStringList('selected_allergens') ?? [];
+      _locationMode = prefs.getString('location_mode') ?? 'auto';
+      _cityName = prefs.getString('manual_city_name') ??
+          prefs.getString('auto_city_name') ??
+          'Twoja lokalizacja';
+    });
+  }
+
+  Future<void> _navigateToAllergens() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => AllergenSelectionScreen(
+          initialAllergens: _selectedAllergens,
+        ),
+      ),
+    );
+    _loadSettings();
+  }
+
+  Future<void> _navigateToCityPicker() async {
+    final result = await Navigator.of(context).push<String>(
+      MaterialPageRoute(
+        builder: (_) => CitySelectionScreen(currentCity: _cityName),
+      ),
+    );
+    if (result != null) {
+      setState(() {
+        _cityName = result;
+        _locationMode = 'manual';
+      });
+    }
+  }
+
+  Future<void> _setLocationMode(String mode) async {
+    if (mode == _locationMode) return;
+
+    if (mode == 'auto') {
+      final enabled = await Geolocator.isLocationServiceEnabled();
+      if (!enabled) return;
+
+      final permission = await Geolocator.checkPermission();
+      if (permission != LocationPermission.always &&
+          permission != LocationPermission.whileInUse) {
+        return;
+      }
+
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('location_mode', 'auto');
+      await prefs.setDouble('auto_lat', position.latitude);
+      await prefs.setDouble('auto_lng', position.longitude);
+
+      setState(() => _locationMode = 'auto');
+    } else {
+      await _navigateToCityPicker();
+    }
+  }
+
+  Future<void> _sendFeedback() async {
+    final uri = Uri(
+      scheme: 'mailto',
+      path: 'jakubgorzny@icloud.com',
+      queryParameters: {
+        'subject': 'Opinia o Pyłku',
+        'body': 'Wpisz tutaj swoją opinię...',
+      },
+    );
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Scaffold(
+      backgroundColor: colorScheme.background,
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          physics: const BouncingScrollPhysics(
+            parent: AlwaysScrollableScrollPhysics(),
+          ),
+          children: [
+            const SizedBox(height: 16),
+            _header(),
+            const SizedBox(height: 12),
+            _pageTitle(),
+            const SizedBox(height: 16),
+            _allergensSection(),
+            const SizedBox(height: 32),
+            _locationSection(),
+            const SizedBox(height: 24),
+            _feedbackSection(),
+            const SizedBox(height: 32),
+            _versionFooter(),
+            const SizedBox(height: 32),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _header() {
+    return Row(
+      children: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          style: TextButton.styleFrom(
+            foregroundColor: AppColors.systemOrange,
+            padding: EdgeInsets.zero,
+            minimumSize: const Size(40, 40),
+            visualDensity: VisualDensity.compact,
+          ),
+          child: const Text(
+            'Wróć',
+            style: TextStyle(fontSize: 17, fontWeight: FontWeight.w500),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _pageTitle() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 24),
+      child: Text(
+        'Ustawienia',
+        style: TextStyle(
+          fontSize: 40,
+          height: 1,
+          fontWeight: FontWeight.w700,
+          color: Theme.of(context).colorScheme.onSurface,
+          letterSpacing: -0.5,
+        ),
+      ),
+    );
+  }
+
+  Widget _sectionLabel(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 4, bottom: 10),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w500,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
+      ),
+    );
+  }
+
+  Widget _sectionCard(List<Widget> children) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(22),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: children,
+        ),
+      ),
+    );
+  }
+
+  Widget _allergensSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionLabel('Alergeny'),
+        _sectionCard([
+          Text(
+            'Wybrane alergeny:',
+            style: TextStyle(
+              fontSize: 12,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 10),
+          if (_selectedAllergens.isEmpty)
+            Text(
+              'Nie wybrano żadnych alergenów',
+              style: TextStyle(
+                fontSize: 14,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            )
+          else
+            Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              children: _selectedAllergens.map((name) {
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.surfaceVariant,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Text(
+                    name,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          const SizedBox(height: 16),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton(
+              onPressed: _navigateToAllergens,
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.systemBlue,
+                padding: EdgeInsets.zero,
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: const Text(
+                'Edytuj',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+              ),
+            ),
+          ),
+        ]),
+      ],
+    );
+  }
+
+  Widget _locationSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionLabel('Lokalizacja'),
+        _sectionCard([
+          Text(
+            'Zmień swoją lokalizację.',
+            style: TextStyle(
+              fontSize: 12,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 12),
+          _locationOption(
+            icon: AppIconKind.myLocation,
+            title: 'Bieżąca lokalizacja',
+            selected: _locationMode == 'auto',
+            onTap: () => _setLocationMode('auto'),
+          ),
+          const SizedBox(height: 8),
+          _locationOption(
+            icon: AppIconKind.locationCity,
+            title: 'Wybrane miasto',
+            subtitle: _locationMode == 'manual' ? _cityName : null,
+            selected: _locationMode == 'manual',
+            onTap: () => _setLocationMode('manual'),
+          ),
+          if (_locationMode == 'manual') ...[
+            const SizedBox(height: 16),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton(
+                onPressed: _navigateToCityPicker,
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.systemBlue,
+                  padding: EdgeInsets.zero,
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: const Text(
+                  'Zmień miasto',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                ),
+              ),
+            ),
+          ],
+        ]),
+      ],
+    );
+  }
+
+  Widget _locationOption({
+    required AppIconKind icon,
+    required String title,
+    String? subtitle,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    final bgColor = selected
+        ? Theme.of(context).colorScheme.surfaceVariant
+        : Colors.transparent;
+
+    return Material(
+      color: bgColor,
+      borderRadius: BorderRadius.circular(16),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: Row(
+            children: [
+              HomeCardBadge(
+                iconKind: icon,
+                background: AppColors.systemBlue.withOpacity(0.14),
+                foreground: AppColors.systemBlue,
+                size: 36,
+                iconSize: 16,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: Theme.of(context).colorScheme.onSurface,
+                      ),
+                    ),
+                    if (subtitle != null) ...[
+                      const SizedBox(height: 1),
+                      Text(
+                        subtitle,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              Container(
+                width: 22,
+                height: 22,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: selected ? AppColors.systemBlue : Colors.transparent,
+                  border: Border.all(
+                    color: selected
+                        ? AppColors.systemBlue
+                        : Theme.of(context).colorScheme.outline,
+                    width: 2,
+                  ),
+                ),
+                child: selected
+                    ? Icon(
+                        Icons.check,
+                        size: 14,
+                        color: Colors.white,
+                      )
+                    : null,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _feedbackSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionLabel('Opinie'),
+        _sectionCard([
+          InkWell(
+            onTap: _sendFeedback,
+            borderRadius: BorderRadius.circular(18),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                children: [
+                  HomeCardBadge(
+                    iconKind: AppIconKind.feedback,
+                    background: AppColors.systemGreen.withOpacity(0.14),
+                    foreground: AppColors.systemGreen,
+                    size: 36,
+                    iconSize: 16,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Napisz opinię o Pyłku',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: Theme.of(context).colorScheme.onSurface,
+                      ),
+                    ),
+                  ),
+                  Icon(
+                    AppIcons.of(context, AppIconKind.chevronRight),
+                    size: 16,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ]),
+      ],
+    );
+  }
+
+  Widget _versionFooter() {
+    return Center(
+      child: Text(
+        'Pyłek 1.0.0 (25 maja 2026)',
+        style: TextStyle(
+          fontSize: 12,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
+      ),
+    );
+  }
+}
