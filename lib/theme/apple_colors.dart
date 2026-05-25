@@ -26,6 +26,7 @@ class AppColors {
   static const Color systemOrange = Color(0xFFFF9F0A);
   static const Color systemRed = Color(0xFFFF3B30);
   static const Color systemRedDark = Color(0xFF7D0A0A);
+  static const Color systemGray = Color(0xFF8E8E93);
   static const Color systemPink = Color(0xFFFF2D55);
   static const Color systemTeal = Color(0xFF6BD7F3);
   static const Color systemPurple = Color(0xFFD6B4FC);

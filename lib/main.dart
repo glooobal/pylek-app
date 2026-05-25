@@ -163,3 +163,18 @@ class _StartupGateState extends State<_StartupGate> {
     );
   }
 }
+
+
+  // Future<void> _sendFeedback() async {
+  //   final Uri emailUri = Uri(
+  //     scheme: 'mailto',
+  //     path: 'jakubgorzny@icloud.com',
+  //     query: Uri.encodeFull(
+  //       'subject=Opinia o Pyłku &body=Wpisz tutaj swoją opinię...',
+  //     ),
+  //   );
+
+  //   if (await canLaunchUrl(emailUri)) {
+  //     await launchUrl(emailUri);
+  //   }
+  // }

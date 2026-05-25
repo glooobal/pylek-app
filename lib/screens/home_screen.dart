@@ -6,7 +6,6 @@ import 'package:pylek/theme/apple_colors.dart';
 
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -14,19 +13,12 @@ import 'package:pylek/screens/alerts_screen.dart';
 import 'package:pylek/screens/journal_screen.dart';
 
 import 'package:pylek/components/small_card.dart';
+import 'package:pylek/utils/pollen_home.dart';
+import 'package:pylek/utils/air_quality_home.dart';
 
 const int _tileZoom = 13;
 const double _mercatorOriginShift = 20037508.342789244;
 const double _tileSizeMeters = 40075016.685578488 / (1 << _tileZoom);
-
-Color _aqiColor(int aqi) {
-  if (aqi <= 50) return AppColors.systemGreen;
-  if (aqi <= 100) return AppColors.systemGreenLight;
-  if (aqi <= 150) return AppColors.systemYellow;
-  if (aqi <= 200) return AppColors.systemOrange;
-  if (aqi <= 300) return AppColors.systemRed;
-  return AppColors.systemRedDark;
-}
 
 String _tileIdFromCoordinates(double latitude, double longitude) {
   final clampedLatitude = latitude.clamp(-85.05112878, 85.05112878);
@@ -38,10 +30,6 @@ String _tileIdFromCoordinates(double latitude, double longitude) {
   final tileY = ((_mercatorOriginShift - yMeters) / _tileSizeMeters).floor();
 
   return 'wmz${_tileZoom}:x$tileX:y$tileY';
-}
-
-String _shortenCategory(String s) {
-  return s.replaceAll(RegExp(r'\s*jakość powietrza\s*$', caseSensitive: false), '').trim();
 }
 
 String _formatFetchTime(dynamic rawValue) {
@@ -78,8 +66,12 @@ class _HomeScreenState extends State<HomeScreen> {
   bool loading = true;
   String? error;
 
-  int upiValue = 0;
+  String pollenCardValue = '';
+  String pollenCardSubtitle = '';
+  int pollenColorScore = 0;
   String pollenFetchedAt = '';
+  List<AllergenPollenCardData> allergenPollenCards = [];
+  List<PollutantCardData> pollutantCards = [];
 
   int airAqi = 0;
   String airCategory = "Dobra";
@@ -106,17 +98,24 @@ class _HomeScreenState extends State<HomeScreen> {
 
       double lat;
       double lng;
+      String resolvedCityName;
 
       if (mode == 'manual') {
         lat = prefs.getDouble('manual_lat') ?? 52.2297;
         lng = prefs.getDouble('manual_lng') ?? 21.0122;
+        resolvedCityName = prefs.getString('manual_city_name') ?? 'Twoja lokalizacja';
       } else {
-        final position = await _getLocation();
-        lat = position.latitude;
-        lng = position.longitude;
+        final position = await _tryGetLocation();
+        if (position != null) {
+          lat = position.latitude;
+          lng = position.longitude;
+          resolvedCityName = await _resolveCityName(lat, lng);
+        } else {
+          lat = prefs.getDouble('auto_lat') ?? 52.2297;
+          lng = prefs.getDouble('auto_lng') ?? 21.0122;
+          resolvedCityName = prefs.getString('auto_city_name') ?? 'Twoja lokalizacja';
+        }
       }
-
-      final resolvedCityName = await _resolveCityName(lat, lng);
       final tileId = _tileIdFromCoordinates(lat, lng);
 
       final results = await Future.wait([
@@ -142,24 +141,21 @@ class _HomeScreenState extends State<HomeScreen> {
 
       final pollenRes = results[0];
       final pollenData = pollenRes.data['data'];
-      final fetchedAt = _formatFetchTime(pollenRes.data['fetched_at']);
+      final pollenDateLabel = formatPollenFetchDate(pollenRes.data['fetched_at']);
       final today = pollenData['dailyInfo'][0];
       final pollenTypes = today['pollenTypeInfo'] ?? [];
-
-      int total = 0;
-      int count = 0;
-
-      for (final type in pollenTypes) {
-        final value = type['indexInfo']?['value'];
-
-        if (value != null) {
-          total += value as int;
-          count++;
-        }
-      }
-
-      final pollenNormalized =
-          count == 0 ? 0 : ((total / (count * 5)) * 100).round();
+      final plants = today['plantInfo'] ?? [];
+      final selectedAllergens = prefs.getStringList('selected_allergens') ?? [];
+      final pollenCard = resolvePollenCard(
+        pollenTypes: pollenTypes,
+        plants: plants,
+        selectedAllergens: selectedAllergens,
+      );
+      final allergenCards = buildSelectedAllergenCards(
+        selectedAllergens: selectedAllergens,
+        pollenTypes: pollenTypes,
+        plants: plants,
+      );
 
       final aqRes = results[1];
       final aqData = aqRes.data['data'];
@@ -167,15 +163,21 @@ class _HomeScreenState extends State<HomeScreen> {
       final index = aqData['indexes']?[0];
       final aqi = index?['aqi'] ?? 0;
       final category = index?['category'] ?? "Brak danych";
+      final pollutants = aqData['pollutants'] ?? [];
+      final builtPollutantCards = buildPollutantCards(pollutants);
 
       if (!mounted) return;
 
       setState(() {
-        upiValue = pollenNormalized;
-        pollenFetchedAt = fetchedAt;
+        pollenCardValue = pollenCard.valueLabel;
+        pollenCardSubtitle = pollenCard.subtitle;
+        pollenColorScore = pollenCard.colorScore;
+        pollenFetchedAt = pollenDateLabel;
+        allergenPollenCards = allergenCards;
         airAqi = aqi;
         airCategory = category;
         airFetchedAt = fetchedAtAir;
+        pollutantCards = builtPollutantCards;
         cityName = resolvedCityName;
         loading = false;
       });
@@ -187,38 +189,15 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Color _upiColor(int value) {
-    if (value <= 20) {
-      return AppColors.systemGreenLight;
-    } else if (value <= 40) {
-      return AppColors.systemGreen;
-    } else if (value <= 60) {
-      return AppColors.systemOrange;
-    } else if (value <= 80) {
-      return AppColors.systemRed;
-    } else {
-      return AppColors.systemRedDark;
-    }
-  }
 
-  Future<Position> _getLocation() async {
+
+  Future<Position?> _tryGetLocation() async {
     final enabled = await Geolocator.isLocationServiceEnabled();
+    if (!enabled) return null;
 
-    if (!enabled) {
-      throw Exception("Włącz lokalizację.");
-    }
-
-    LocationPermission permission = await Geolocator.checkPermission();
-
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-    }
-
-    if (permission == LocationPermission.deniedForever) {
-      throw Exception(
-        "Brak uprawnień do lokalizacji.",
-      );
-    }
+    final permission = await Geolocator.checkPermission();
+    if (permission != LocationPermission.always &&
+        permission != LocationPermission.whileInUse) return null;
 
     return Geolocator.getCurrentPosition(
       desiredAccuracy: LocationAccuracy.high,
@@ -251,20 +230,6 @@ class _HomeScreenState extends State<HomeScreen> {
       return 'Twoja lokalizacja';
     } catch (_) {
       return 'Twoja lokalizacja';
-    }
-  }
-
-  Future<void> _sendFeedback() async {
-    final Uri emailUri = Uri(
-      scheme: 'mailto',
-      path: 'jakubgorzny@icloud.com',
-      query: Uri.encodeFull(
-        'subject=Opinia o Pyłku &body=Wpisz tutaj swoją opinię...',
-      ),
-    );
-
-    if (await canLaunchUrl(emailUri)) {
-      await launchUrl(emailUri);
     }
   }
 
@@ -328,9 +293,9 @@ class _HomeScreenState extends State<HomeScreen> {
             Padding(
               padding: EdgeInsets.only(bottom: 24),
                   child: Text(
-                "Prognoza dla $cityName",
+                cityName,
                 style: TextStyle(
-                  fontSize: 20,
+                  fontSize: 18,
                   height: 1,
                   fontWeight: FontWeight.w700,
                   color: colorScheme.onBackground,
@@ -339,50 +304,122 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
 
-            Row(
-              children: [
-                Expanded(
-                  child: SmallCard(
-                    title: "Pylenie",
-                    value: _upiLabel(upiValue),
-                    text: "$upiValue w skali UPI",
-                    iconKind: AppIconKind.grass,
-                    fetchedAt: pollenFetchedAt.isEmpty ? null : pollenFetchedAt,
-                    badgeForeground: _upiColor(upiValue),
-                    badgeBackground: _upiColor(upiValue).withOpacity(0.14),
-                    onTap: () => _openDetails("air"),
-                  ),
-                ),
-              ],
+            SmallCard(
+              title: "Pylenie roślin",
+              value: pollenCardValue,
+              subtitle: pollenCardSubtitle,
+              iconKind: AppIconKind.grass,
+              fetchedAt: pollenFetchedAt.isEmpty ? null : pollenFetchedAt,
+              badgeForeground: pollenSeverityColor(pollenColorScore),
+              badgeBackground: pollenSeverityColor(pollenColorScore).withOpacity(0.14),
             ),
 
-            SizedBox(height: 16),
+            SizedBox(height: 32),
 
-            Row(
-              children: [
-                Expanded(
-                  child: SmallCard(
-                    title: "Jakość powietrza",
-                    value: _shortenCategory(airCategory),
-                    text: "$airAqi w skali AQI",
-                    iconKind: AppIconKind.air,
-                    fetchedAt: airFetchedAt.isEmpty ? null : airFetchedAt,
-                    badgeForeground: _aqiColor(airAqi),
-                    badgeBackground: _aqiColor(airAqi).withOpacity(0.14),
-                    onTap: () => _openDetails("air"),
+            if (allergenPollenCards.isNotEmpty) ...[
+              Padding(
+                  padding: EdgeInsets.only(bottom: 24),
+                  child: Text(
+                    "Twoje alergeny",
+                    style: TextStyle(
+                    fontSize: 18,
+                    height: 1,
+                    fontWeight: FontWeight.w700,
+                    color: colorScheme.onBackground,
+                    letterSpacing: -0.5,
                   ),
                 ),
-              ],
-            ),
+              ),
+
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final cardWidth = (constraints.maxWidth - 24) / 2.35;
+
+                  return SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    physics: const BouncingScrollPhysics(),
+                    child: Row(
+                      children: [
+                        for (var i = 0; i < allergenPollenCards.length; i++) ...[
+                          if (i > 0) const SizedBox(width: 10),
+                          SizedBox(
+                            width: cardWidth,
+                            child: SmallCard(
+                              title: allergenPollenCards[i].name,
+                              value: allergenPollenCards[i].valueLabel,
+                              subtitle: allergenPollenCards[i].upiLabel,
+                              iconKind: allergenPollenCards[i].iconKind,
+                              badgeForeground: pollenSeverityColor(allergenPollenCards[i].colorScore),
+                              badgeBackground: pollenSeverityColor(allergenPollenCards[i].colorScore).withOpacity(0.14),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ],
+
+            SizedBox(height: 32),
+
+            if (pollutantCards.isNotEmpty) ...[
+              Padding(
+                    padding: EdgeInsets.only(bottom: 24),
+                    child: Text(
+                      "Jakość powietrza",
+                      style: TextStyle(
+                      fontSize: 18,
+                      height: 1,
+                      fontWeight: FontWeight.w700,
+                      color: colorScheme.onBackground,
+                      letterSpacing: -0.5,
+                  ),
+                ),
+              ),
+
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final cardWidth = (constraints.maxWidth - 24) / 2.35;
+
+                  return SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    physics: const BouncingScrollPhysics(),
+                    child: Row(
+                      children: [
+                        for (var i = 0; i < pollutantCards.length; i++) ...[
+                          if (i > 0) const SizedBox(width: 10),
+                          SizedBox(
+                            width: cardWidth,
+                            child: SmallCard(
+                              title: pollutantCards[i].title,
+                              value: pollutantCards[i].subtitle.isNotEmpty
+                                  ? pollutantCards[i].subtitle
+                                  : pollutantCards[i].value,
+                              subtitle: pollutantCards[i].subtitle.isNotEmpty
+                                  ? pollutantCards[i].value
+                                  : null,
+                              iconKind: pollutantCards[i].iconKind,
+                              badgeForeground: pollutantCards[i].badgeForeground,
+                              badgeBackground: pollutantCards[i].badgeBackground,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ],
 
             SizedBox(height: 32),
 
             Padding(
               padding: EdgeInsets.only(bottom: 24),
               child: Text(
-                "Dla Ciebie",
+                "Na skróty",
                 style: TextStyle(
-                  fontSize: 20,
+                  fontSize: 18,
                   height: 1,
                   fontWeight: FontWeight.w700,
                   color: colorScheme.onBackground,
@@ -393,7 +430,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
             LayoutBuilder(
               builder: (context, constraints) {
-                final cardWidth = (constraints.maxWidth - 32) / 2;
+                final cardWidth = (constraints.maxWidth - 32) / 2.35;
 
                 return SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
@@ -404,13 +441,12 @@ class _HomeScreenState extends State<HomeScreen> {
                         width: cardWidth,
                         child: SmallCard(
                           title: "Prognoza",
-                          value: "Sprawdź",
-                          valueSize: "small",
-                          text: "Przygotuj się",
+                          value: "Najbliższe dni",
                           iconKind: AppIconKind.forecast,
                           badgeForeground: AppColors.systemTeal,
                           badgeBackground: AppColors.systemTeal.withOpacity(0.12),
                           onTap: () => _openDetails("forecast"),
+                          showChevron: true,
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -418,13 +454,12 @@ class _HomeScreenState extends State<HomeScreen> {
                         width: cardWidth,
                         child: SmallCard(
                           title: "Dzienniczek",
-                          value: "Uzupełnij",
-                          valueSize: "small",
-                          text: "Otwórz dzienniczek",
+                          value: "Zapisz wpis",
                           iconKind: AppIconKind.journal,
                           badgeForeground: AppColors.systemYellow,
                           badgeBackground: AppColors.systemYellow.withOpacity(0.12),
                           onTap: () => _openDetails("journal"),
+                          showChevron: true,
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -432,13 +467,12 @@ class _HomeScreenState extends State<HomeScreen> {
                         width: cardWidth,
                         child: SmallCard(
                           title: "Alerty",
-                          value: "Brak",
-                          valueSize: "small",
-                          text: "Skonfiguruj alerty",
+                          value: "Dodaj alert",
                           iconKind: AppIconKind.alerts,
                           badgeForeground: AppColors.systemPink,
                           badgeBackground: AppColors.systemPink.withOpacity(0.12),
                           onTap: () => _openDetails("alerts"),
+                          showChevron: true,
                         ),
                       ),
                     ],
@@ -448,56 +482,10 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
 
             SizedBox(height: 32),
-
-            Padding(
-              padding: EdgeInsets.only(bottom: 24),
-              child: Text(
-                "Pozostałe",
-                style: TextStyle(
-                  fontSize: 20,
-                  height: 1,
-                  fontWeight: FontWeight.w700,
-                  color: colorScheme.onBackground,
-                  letterSpacing: -0.5,
-                ),
-              ),
-            ),
-
-            Row(
-              children: [
-                Expanded(
-                  child: SmallCard(
-                    title: "Masz propozycję?",
-                    value: "Wyślij opinię",
-                    valueSize: "small",
-                    text: "Pomóż ulepszyć Pyłka",
-                    iconKind: AppIconKind.feedback,
-                    badgeForeground: AppColors.systemPurple,
-                    badgeBackground: AppColors.systemPurple.withOpacity(0.12),
-                    onTap: () => _sendFeedback(),
-                  ),
-                ),
-              ],
-            ),
-            
-            SizedBox(height: 32),
           ],
         ),
       ),
     );
   }
 
-  String _upiLabel(int value) {
-    if (value <= 20) {
-      return "Niskie";
-    } else if (value <= 40) {
-      return "Dobre";
-    } else if (value <= 60) {
-      return "Umiarkowane";
-    } else if (value <= 80) {
-      return "Wysokie";
-    } else {
-      return "Bardzo wysokie";
-    }
-  }
 }
