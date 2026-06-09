@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:pylek/components/app_icons.dart';
 import 'package:pylek/components/home_card_badge.dart';
 import 'package:pylek/theme/apple_colors.dart';
 import 'package:pylek/screens/allergen_selection_screen.dart';
 import 'package:pylek/screens/city_selection_screen.dart';
+import 'package:pylek/utils/location_utils.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -68,17 +70,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     if (mode == 'auto') {
       final enabled = await Geolocator.isLocationServiceEnabled();
-      if (!enabled) return;
+      if (!enabled) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Włącz usługi lokalizacji w ustawieniach telefonu, aby użyć bieżącej lokalizacji.'),
+            behavior: SnackBarBehavior.floating,
+            duration: Duration(seconds: 4),
+          ),
+        );
+        return;
+      }
 
       final permission = await Geolocator.checkPermission();
       if (permission != LocationPermission.always &&
           permission != LocationPermission.whileInUse) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Brak zgody na lokalizację. Przejdź do Ustawienia → Pyłek → Lokalizacja, aby włączyć.'),
+            behavior: SnackBarBehavior.floating,
+            duration: Duration(seconds: 4),
+          ),
+        );
         return;
       }
 
-      final position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-      );
+      final position = await tryGetLocation();
+      if (position == null) return;
 
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('location_mode', 'auto');
@@ -92,16 +111,51 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _sendFeedback() async {
-    final uri = Uri(
-      scheme: 'mailto',
-      path: 'jakubgorzny@icloud.com',
-      queryParameters: {
-        'subject': 'Opinia o Pyłku',
-        'body': 'Wpisz tutaj swoją opinię...',
-      },
+    final controller = TextEditingController();
+
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Opinia o Pyłku'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLines: 5,
+          decoration: const InputDecoration(
+            hintText: 'Wpisz swoją opinię...',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Anuluj'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(controller.text.trim()),
+            child: const Text('Wyślij'),
+          ),
+        ],
+      ),
     );
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri);
+
+    controller.dispose();
+    if (result == null || result.isEmpty) return;
+
+    try {
+      await Supabase.instance.client.from('feedback').insert({
+        'message': result,
+        'created_at': DateTime.now().toIso8601String(),
+      });
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Dziękujemy za opinię!')),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Nie udało się wysłać opinii. Spróbuj ponownie.')),
+      );
     }
   }
 
@@ -335,19 +389,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ? Theme.of(context).colorScheme.surfaceVariant
         : Colors.transparent;
 
-    return Material(
-      color: bgColor,
-      borderRadius: BorderRadius.circular(16),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          child: Row(
+    return Semantics(
+      button: true,
+      label: title,
+      selected: selected,
+      child: Material(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(16),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            child: Row(
             children: [
               HomeCardBadge(
                 iconKind: icon,
-                background: AppColors.systemBlue.withOpacity(0.14),
+                background: AppColors.systemBlue.withValues(alpha: 0.14),
                 foreground: AppColors.systemBlue,
                 size: 36,
                 iconSize: 16,
@@ -403,6 +461,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ),
       ),
+      ),
     );
   }
 
@@ -412,37 +471,41 @@ class _SettingsScreenState extends State<SettingsScreen> {
       children: [
         _sectionLabel('Opinie'),
         _sectionCard([
-          InkWell(
-            onTap: _sendFeedback,
-            borderRadius: BorderRadius.circular(18),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              child: Row(
-                children: [
-                  HomeCardBadge(
-                    iconKind: AppIconKind.feedback,
-                    background: AppColors.systemGreen.withOpacity(0.14),
-                    foreground: AppColors.systemGreen,
-                    size: 36,
-                    iconSize: 16,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'Napisz opinię o Pyłku',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: Theme.of(context).colorScheme.onSurface,
+          Semantics(
+            button: true,
+            label: 'Napisz opinię o Pyłku',
+            child: InkWell(
+              onTap: _sendFeedback,
+              borderRadius: BorderRadius.circular(18),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  children: [
+                    HomeCardBadge(
+                      iconKind: AppIconKind.feedback,
+                      background: AppColors.systemGreen.withValues(alpha: 0.14),
+                      foreground: AppColors.systemGreen,
+                      size: 36,
+                      iconSize: 16,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Napisz opinię\u00a0o Pyłku',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
                       ),
                     ),
-                  ),
-                  Icon(
-                    AppIcons.of(context, AppIconKind.chevronRight),
-                    size: 16,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                ],
+                    Icon(
+                      AppIcons.of(context, AppIconKind.chevronRight),
+                      size: 16,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -452,14 +515,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _versionFooter() {
-    return Center(
-      child: Text(
-        'Pyłek 1.0.0 (25 maja 2026)',
-        style: TextStyle(
-          fontSize: 12,
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
-        ),
-      ),
+    return FutureBuilder<PackageInfo>(
+      future: PackageInfo.fromPlatform(),
+      builder: (context, snapshot) {
+        final version = snapshot.data != null
+            ? 'Pyłek ${snapshot.data!.version} (${snapshot.data!.buildNumber})'
+            : 'Pyłek 1.0.0';
+        return Center(
+          child: Text(
+            version,
+            style: TextStyle(
+              fontSize: 12,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+        );
+      },
     );
   }
 }

@@ -3,11 +3,7 @@ import 'package:pylek/components/app_icons.dart';
 import 'package:pylek/components/home_card_badge.dart';
 import 'package:pylek/theme/apple_colors.dart';
 import 'package:pylek/utils/journal_service.dart';
-
-const List<String> _monthNames = [
-  'stycznia', 'lutego', 'marca', 'kwietnia', 'maja', 'czerwca',
-  'lipca', 'sierpnia', 'września', 'października', 'listopada', 'grudnia',
-];
+import 'package:pylek/utils/journal_constants.dart';
 
 const List<String> _monthNamesNominative = [
   'Styczeń', 'Luty', 'Marzec', 'Kwiecień', 'Maj', 'Czerwiec',
@@ -18,57 +14,8 @@ const List<String> _weekdayLabels = [
   'Pon', 'Wt', 'Śr', 'Czw', 'Pt', 'Sob', 'Niedz',
 ];
 
-const List<String> _severityLevels = [
-  'Brak',
-  'Lekkie',
-  'Umiarkowane',
-  'Silne',
-];
-
-const List<String> _symptomsList = [
-  'Katar',
-  'Kichanie',
-  'Zatkany nos',
-  'Łzawienie oczu',
-  'Ból gardła',
-  'Suchy kaszel',
-  'Mokry kaszel',
-  'Duszności',
-  'Zmęczenie',
-  'Ból głowy',
-  'Ból brzucha',
-  'Swędzenie skóry',
-  'Pokrzywka',
-  'Wysypka',
-];
-
-Color _severityColor(int level) {
-  if (level <= 1) return AppColors.systemGreen;
-  if (level == 2) return AppColors.systemOrange;
-  return AppColors.systemRed;
-}
-
-AppIconKind _severityIcon(int level) {
-  if (level <= 1) return AppIconKind.faceSmiling;
-  if (level == 2) return AppIconKind.faceNeutral;
-  return AppIconKind.faceFrowning;
-}
-
-String _severityLabel(int level) {
-  if (level >= 0 && level < _severityLevels.length) {
-    return _severityLevels[level];
-  }
-  return '';
-}
-
-String _formatDate(String isoDate) {
-  final parts = isoDate.split('-');
-  if (parts.length != 3) return isoDate;
-  return '${int.parse(parts[2])} ${_monthNames[int.parse(parts[1]) - 1]} ${parts[0]}';
-}
-
 String _formatSelectedDate(DateTime date) {
-  return '${date.day} ${_monthNames[date.month - 1]} ${date.year}';
+  return '${date.day} ${monthNames[date.month - 1]} ${date.year}';
 }
 
 String _toIso(DateTime date) {
@@ -187,7 +134,16 @@ class _JournalScreenState extends State<JournalScreen> {
       symptoms: _selectedSymptoms.toList()..sort(),
       notes: _notesController.text.trim(),
     );
-    await _service.saveEntry(entry);
+    try {
+      await _service.saveEntry(entry);
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Nie udało się zapisać wpisu.")),
+      );
+      return;
+    }
+    if (!mounted) return;
     setState(() {
       _isFormExpanded = false;
     });
@@ -195,9 +151,9 @@ class _JournalScreenState extends State<JournalScreen> {
   }
 
   Future<void> _delete() async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showAdaptiveDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => AlertDialog.adaptive(
         title: const Text("Usuń wpis"),
         content: const Text("Czy na pewno chcesz usunąć ten wpis?"),
         actions: [
@@ -213,7 +169,16 @@ class _JournalScreenState extends State<JournalScreen> {
       ),
     );
     if (confirmed != true) return;
-    await _service.deleteEntry(_toIso(_selectedDate));
+    try {
+      await _service.deleteEntry(_toIso(_selectedDate));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Nie udało się usunąć wpisu.")),
+      );
+      return;
+    }
+    if (!mounted) return;
     setState(() {
       _isFormExpanded = false;
     });
@@ -225,7 +190,7 @@ class _JournalScreenState extends State<JournalScreen> {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      backgroundColor: colorScheme.background,
+      backgroundColor: colorScheme.surface,
       body: SafeArea(
         child: _loaded
             ? ListView(
@@ -256,7 +221,7 @@ class _JournalScreenState extends State<JournalScreen> {
                         fontSize: 18,
                         height: 1,
                         fontWeight: FontWeight.w700,
-                        color: colorScheme.onBackground,
+                        color: colorScheme.onSurface,
                         letterSpacing: -0.5,
                       ),
                     ),
@@ -332,7 +297,7 @@ class _CalendarSection extends StatelessWidget {
     final iso = _toIso(date);
     try {
       final entry = entries.firstWhere((e) => e.date == iso);
-      return _severityColor(entry.severity);
+      return severityColor(entry.severity);
     } catch (_) {
       return null;
     }
@@ -349,7 +314,7 @@ class _CalendarSection extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: colorScheme.surface,
+        color: colorScheme.surfaceContainer,
         borderRadius: BorderRadius.circular(22),
       ),
       child: Column(
@@ -357,14 +322,20 @@ class _CalendarSection extends StatelessWidget {
           // Month header
           Row(
             children: [
-              GestureDetector(
-                onTap: onPreviousMonth,
-                child: Padding(
-                  padding: const EdgeInsets.all(4),
-                  child: Icon(
-                    AppIcons.of(context, AppIconKind.chevronLeft),
-                    size: 18,
-                    color: colorScheme.onSurfaceVariant,
+              Semantics(
+                button: true,
+                label: "Poprzedni miesiąc",
+                child: GestureDetector(
+                  onTap: onPreviousMonth,
+                  child: Container(
+                    width: 44,
+                    height: 44,
+                    alignment: Alignment.center,
+                    child: Icon(
+                      AppIcons.of(context, AppIconKind.chevronLeft),
+                      size: 18,
+                      color: colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 ),
               ),
@@ -379,14 +350,20 @@ class _CalendarSection extends StatelessWidget {
                 ),
               ),
               const Spacer(),
-              GestureDetector(
-                onTap: onNextMonth,
-                child: Padding(
-                  padding: const EdgeInsets.all(4),
-                  child: Icon(
-                    AppIcons.of(context, AppIconKind.chevronRight),
-                    size: 18,
-                    color: colorScheme.onSurfaceVariant,
+              Semantics(
+                button: true,
+                label: "Następny miesiąc",
+                child: GestureDetector(
+                  onTap: onNextMonth,
+                  child: Container(
+                    width: 44,
+                    height: 44,
+                    alignment: Alignment.center,
+                    child: Icon(
+                      AppIcons.of(context, AppIconKind.chevronRight),
+                      size: 18,
+                      color: colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 ),
               ),
@@ -481,23 +458,32 @@ class _DayCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hasDot = dotColor != null;
+    final hasDot = dotColor != null && !isToday;
 
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
+    return Semantics(
+      button: true,
+      label: "Dzień ${day.toString()}",
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
+            Container(
             width: 36,
             height: 36,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: isToday
+              color: isToday && isSelected
                   ? AppColors.systemOrange
-                  : isSelected
-                      ? colorScheme.surfaceVariant
-                      : Colors.transparent,
+                  : isToday
+                      ? AppColors.systemOrange.withValues(alpha: 0.15)
+                      : isSelected
+                          ? colorScheme.surfaceContainerHighest
+                          : Colors.transparent,
+              border: isToday && !isSelected
+                  ? Border.all(color: AppColors.systemOrange.withValues(alpha: 0.5), width: 1.5)
+                  : null,
             ),
             child: Center(
               child: Text(
@@ -507,14 +493,16 @@ class _DayCell extends StatelessWidget {
                   fontWeight: isToday || isSelected
                       ? FontWeight.w600
                       : FontWeight.w400,
-                  color: isToday
+                  color: isToday && isSelected
                       ? Colors.white
-                      : colorScheme.onSurface,
+                      : isToday
+                          ? AppColors.systemOrange
+                          : colorScheme.onSurface,
                 ),
               ),
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 2),
           if (hasDot)
             Container(
               width: 5,
@@ -525,8 +513,9 @@ class _DayCell extends StatelessWidget {
               ),
             )
           else
-            const SizedBox(height: 5),
+            const SizedBox(height: 7),
         ],
+      ),
       ),
     );
   }
@@ -551,12 +540,12 @@ class _EntryDetailCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final severityColor = _severityColor(entry.severity);
+    final sevColor = severityColor(entry.severity);
 
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: colorScheme.surface,
+        color: colorScheme.surfaceContainer,
         borderRadius: BorderRadius.circular(22),
       ),
       child: Column(
@@ -565,9 +554,9 @@ class _EntryDetailCard extends StatelessWidget {
           Row(
             children: [
               HomeCardBadge(
-                iconKind: _severityIcon(entry.severity),
-                background: severityColor.withOpacity(0.14),
-                foreground: severityColor,
+                iconKind: severityIcon(entry.severity),
+                background: sevColor.withValues(alpha: 0.14),
+                foreground: sevColor,
                 size: 44,
                 iconSize: 22,
               ),
@@ -577,7 +566,7 @@ class _EntryDetailCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      _severityLabel(entry.severity),
+                      severityLabel(entry.severity),
                       style: TextStyle(
                         fontSize: 18,
                         height: 1.1,
@@ -588,7 +577,7 @@ class _EntryDetailCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      _formatDate(entry.date),
+                      formatDate(entry.date),
                       style: TextStyle(
                         fontSize: 12,
                         color: colorScheme.onSurfaceVariant,
@@ -648,21 +637,25 @@ class _EntryDetailCard extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: GestureDetector(
-                  onTap: onEdit,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    decoration: BoxDecoration(
-                      color: colorScheme.surfaceVariant,
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Text(
-                      "Edytuj",
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.systemOrange,
+                child: Semantics(
+                  button: true,
+                  label: "Edytuj wpis",
+                  child: GestureDetector(
+                    onTap: onEdit,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      decoration: BoxDecoration(
+                        color: colorScheme.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Text(
+                        "Edytuj",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.systemGray,
+                        ),
                       ),
                     ),
                   ),
@@ -670,21 +663,25 @@ class _EntryDetailCard extends StatelessWidget {
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: GestureDetector(
-                  onTap: onDelete,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    decoration: BoxDecoration(
-                      color: AppColors.systemRed.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Text(
-                      "Usuń",
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.systemRed,
+                child: Semantics(
+                  button: true,
+                  label: "Usuń wpis",
+                  child: GestureDetector(
+                    onTap: onDelete,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      decoration: BoxDecoration(
+                        color: AppColors.systemRed.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Text(
+                        "Usuń",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.systemRed,
+                        ),
                       ),
                     ),
                   ),
@@ -716,14 +713,14 @@ class _EmptyDayCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: colorScheme.surface,
+        color: colorScheme.surfaceContainer,
         borderRadius: BorderRadius.circular(22),
       ),
       child: Column(
         children: [
           HomeCardBadge(
             iconKind: AppIconKind.pencil,
-            background: AppColors.systemGray.withOpacity(0.14),
+            background: AppColors.systemGray.withValues(alpha: 0.14),
             foreground: AppColors.systemGray,
             size: 44,
             iconSize: 22,
@@ -750,22 +747,26 @@ class _EmptyDayCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 20),
-          GestureDetector(
-            onTap: onAdd,
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              decoration: BoxDecoration(
-                color: colorScheme.surfaceVariant,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Text(
-                "Dodaj wpis",
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: colorScheme.onSurface,
+          Semantics(
+            button: true,
+            label: "Dodaj wpis",
+            child: GestureDetector(
+              onTap: onAdd,
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  color: colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Text(
+                  "Dodaj wpis",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: colorScheme.onSurface,
+                  ),
                 ),
               ),
             ),
@@ -808,7 +809,7 @@ class _EntryForm extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: colorScheme.surface,
+        color: colorScheme.surfaceContainer,
         borderRadius: BorderRadius.circular(22),
       ),
       child: Column(
@@ -826,42 +827,46 @@ class _EntryForm extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(3),
             decoration: BoxDecoration(
-              color: colorScheme.surfaceVariant.withOpacity(0.6),
+              color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.6),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Row(
               children: [
-                for (var i = 0; i < _severityLevels.length; i++) ...[
+                for (var i = 0; i < severityLevels.length; i++) ...[
                   Expanded(
-                    child: GestureDetector(
-                      onTap: () => onSeverityChanged(i),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        decoration: BoxDecoration(
-                          color: severity == i
-                              ? colorScheme.surface
-                              : Colors.transparent,
-                          borderRadius: BorderRadius.circular(10),
-                          boxShadow: severity == i
-                              ? [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.04),
-                                    blurRadius: 2,
-                                    offset: const Offset(0, 1),
-                                  ),
-                                ]
-                              : null,
-                        ),
-                        child: Text(
-                          _severityLevels[i],
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
+                    child: Semantics(
+                      button: true,
+                      label: "Poziom ${severityLevels[i]}",
+                      child: GestureDetector(
+                        onTap: () => onSeverityChanged(i),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          decoration: BoxDecoration(
                             color: severity == i
-                                ? _severityColor(i)
-                                : colorScheme.onSurfaceVariant,
+                                ? colorScheme.surfaceContainer
+                                : Colors.transparent,
+                            borderRadius: BorderRadius.circular(10),
+                            boxShadow: severity == i
+                                ? [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.04),
+                                      blurRadius: 2,
+                                      offset: const Offset(0, 1),
+                                    ),
+                                  ]
+                                : null,
+                          ),
+                          child: Text(
+                            severityLevels[i],
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: severity == i
+                                  ? severityColor(i)
+                                  : colorScheme.onSurfaceVariant,
+                            ),
                           ),
                         ),
                       ),
@@ -884,7 +889,7 @@ class _EntryForm extends StatelessWidget {
           Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: _symptomsList.map((symptom) {
+            children: symptomsList.map((symptom) {
               final sel = selectedSymptoms.contains(symptom);
               return GestureDetector(
                 onTap: () {
@@ -903,8 +908,8 @@ class _EntryForm extends StatelessWidget {
                   ),
                   decoration: BoxDecoration(
                     color: sel
-                        ? AppColors.systemOrange.withOpacity(0.08)
-                        : colorScheme.surfaceVariant.withOpacity(0.5),
+                        ? AppColors.systemOrange.withValues(alpha: 0.08)
+                        : colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: Text(
@@ -938,7 +943,7 @@ class _EntryForm extends StatelessWidget {
               hintText: "Dodaj krótką notatkę...",
               hintStyle: TextStyle(
                 fontSize: 13,
-                color: colorScheme.onSurfaceVariant.withOpacity(0.6),
+                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
                 fontWeight: FontWeight.w400,
               ),
               border: OutlineInputBorder(
@@ -946,7 +951,7 @@ class _EntryForm extends StatelessWidget {
                 borderSide: BorderSide.none,
               ),
               filled: true,
-              fillColor: colorScheme.surfaceVariant.withOpacity(0.35),
+              fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 14,
                 vertical: 10,
@@ -962,21 +967,25 @@ class _EntryForm extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: GestureDetector(
-                  onTap: onCancel,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    decoration: BoxDecoration(
-                      color: colorScheme.surfaceVariant,
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Text(
-                      "Anuluj",
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: colorScheme.onSurfaceVariant,
+                child: Semantics(
+                  button: true,
+                  label: "Anuluj",
+                  child: GestureDetector(
+                    onTap: onCancel,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      decoration: BoxDecoration(
+                        color: colorScheme.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Text(
+                        "Anuluj",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
                       ),
                     ),
                   ),
@@ -984,21 +993,25 @@ class _EntryForm extends StatelessWidget {
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: GestureDetector(
-                  onTap: onSave,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    decoration: BoxDecoration(
-                      color: colorScheme.surfaceVariant,
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Text(
-                      "Zapisz wpis",
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: colorScheme.onSurface,
+                child: Semantics(
+                  button: true,
+                  label: "Zapisz wpis",
+                  child: GestureDetector(
+                    onTap: onSave,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      decoration: BoxDecoration(
+                        color: colorScheme.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Text(
+                        "Zapisz wpis",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: colorScheme.onSurface,
+                        ),
                       ),
                     ),
                   ),

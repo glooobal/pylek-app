@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "767510040364",
+    "project_id": "pylek-6d848",
+    "storage_bucket": "pylek-6d848.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:767510040364:android:697f5247949a707801e689",
+        "android_client_info": {
+          "package_name": "pl.vitalogic.pylek"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyADkPge6tLBN1TBxtXuDKw_iKQ7WIejzqw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

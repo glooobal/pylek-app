@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:geolocator/geolocator.dart';
-import 'package:geocoding/geocoding.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -10,6 +8,8 @@ import 'package:pylek/components/insight_card.dart';
 import 'package:pylek/components/small_card.dart';
 import 'package:pylek/utils/allergen_data.dart';
 import 'package:pylek/utils/pollen_home.dart';
+import 'package:pylek/utils/data_cache.dart';
+import 'package:pylek/utils/location_utils.dart';
 
 const List<String> _weekdayNames = [
   'poniedziałek', 'wtorek', 'środa', 'czwartek', 'piątek', 'sobota', 'niedziela',
@@ -55,7 +55,7 @@ String _severityLabel(int score) {
   }
 }
 
-({int maxScore, String conditionText}) _dayPersonalizedForecast(
+({int maxScore}) _dayPersonalizedForecast(
   dynamic day,
   List<String> allergensToShow,
 ) {
@@ -72,17 +72,8 @@ String _severityLabel(int score) {
       ? 0
       : cards.map((c) => c.colorScore).reduce((a, b) => a > b ? a : b);
 
-  if (maxScore <= 20) return (maxScore: maxScore, conditionText: 'Spokojny dzień');
-  if (maxScore <= 40) return (maxScore: maxScore, conditionText: 'Niskie pylenie');
-
-  final active = cards.where((c) => c.colorScore > 40).toList();
-  active.sort((a, b) => b.colorScore.compareTo(a.colorScore));
-
-  if (active.isEmpty) return (maxScore: maxScore, conditionText: 'Umiarkowane pylenie');
-
-  final top = active.take(2).map((c) => c.name.toLowerCase()).toList();
-  final text = top.length == 1 ? top[0] : '${top[0]} i ${top[1]}';
-  return (maxScore: maxScore, conditionText: text);
+  if (maxScore <= 20) return (maxScore: maxScore);
+  return (maxScore: maxScore);
 }
 
 class ForecastScreen extends StatefulWidget {
@@ -97,6 +88,7 @@ class _ForecastScreenState extends State<ForecastScreen> {
 
   bool loading = true;
   String? error;
+  bool _locationFallback = false;
   String cityName = 'Twoja lokalizacja';
 
   List<dynamic> dailyInfo = [];
@@ -121,14 +113,14 @@ class _ForecastScreenState extends State<ForecastScreen> {
       if (!mounted) return;
       setState(() {
         loading = false;
-        error = e.toString();
+        error = "Nie udało się pobrać danych. Sprawdź połączenie z internetem.";
       });
     }
   }
 
   Future<void> _refresh() async {
     try {
-      await _fetchData();
+      await _fetchData(forceRefresh: true);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -141,7 +133,7 @@ class _ForecastScreenState extends State<ForecastScreen> {
     }
   }
 
-  Future<void> _fetchData() async {
+  Future<void> _fetchData({bool forceRefresh = false}) async {
     final prefs = await SharedPreferences.getInstance();
     selectedAllergens = prefs.getStringList('selected_allergens') ?? [];
 
@@ -155,55 +147,78 @@ class _ForecastScreenState extends State<ForecastScreen> {
       lng = prefs.getDouble('manual_lng') ?? 21.0122;
       resolvedCityName = prefs.getString('manual_city_name') ?? 'Twoja lokalizacja';
     } else {
-      final position = await _tryGetLocation();
+      final position = await tryGetLocation();
       if (position != null) {
         lat = position.latitude;
         lng = position.longitude;
-        resolvedCityName = await _resolveCityName(lat, lng);
+        resolvedCityName = await resolveCityName(lat, lng);
       } else {
+        _locationFallback = true;
         lat = prefs.getDouble('auto_lat') ?? 52.2297;
         lng = prefs.getDouble('auto_lng') ?? 21.0122;
         resolvedCityName = prefs.getString('auto_city_name') ?? 'Twoja lokalizacja';
       }
     }
 
-    final pollenRes = await _client.functions.invoke(
-      'get_pollen',
-      body: {"latitude": lat, "longitude": lng},
-    );
+    if (!forceRefresh) {
+      final cached = await cachedPollenResponse(lat, lng);
+      if (cached != null) {
+        final cachedData = cached['data'];
+        if (cachedData is Map) {
+          dailyInfo = (cachedData['dailyInfo'] as List<dynamic>?) ?? [];
+        }
+        if (!mounted) return;
+        setState(() {
+          cityName = resolvedCityName;
+          loading = false;
+        });
+        return;
+      }
+    }
 
-    final pollenData = pollenRes.data['data'];
-    dailyInfo = pollenData['dailyInfo'] ?? [];
+    final tileId = tileIdFromCoordinates(lat, lng);
+
+    Map<String, dynamic>? pollenResData;
+    try {
+      final pollenRes = await _client.functions
+          .invoke('get_pollen', body: {
+            "latitude": lat,
+            "longitude": lng,
+            "tile_id": tileId,
+            "tile_zoom": tileZoom,
+          })
+          .timeout(const Duration(seconds: 30));
+      pollenResData = pollenRes.data as Map<String, dynamic>?;
+      if (pollenResData != null) {
+        await storeCachedPollenResponse(lat, lng, pollenResData);
+      }
+    } catch (_) {
+      pollenResData = await staleCachedPollenResponse(lat, lng);
+    }
+
+    final rawData = pollenResData?['data'];
+    if (rawData is Map) {
+      dailyInfo = (rawData['dailyInfo'] as List<dynamic>?) ?? [];
+    } else {
+      dailyInfo = [];
+    }
 
     if (!mounted) return;
-
     setState(() {
+      selectedDayIndex = 0;
       cityName = resolvedCityName;
       loading = false;
     });
-  }
-
-  Future<Position?> _tryGetLocation() async {
-    final enabled = await Geolocator.isLocationServiceEnabled();
-    if (!enabled) return null;
-    final permission = await Geolocator.checkPermission();
-    if (permission != LocationPermission.always &&
-        permission != LocationPermission.whileInUse) return null;
-    return Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
-  }
-
-  Future<String> _resolveCityName(double lat, double lng) async {
-    try {
-      final placemarks = await placemarkFromCoordinates(lat, lng);
-      if (placemarks.isEmpty) return 'Twoja lokalizacja';
-      final p = placemarks.first;
-      for (final c in [p.locality, p.subAdministrativeArea, p.administrativeArea]) {
-        final v = c?.trim();
-        if (v != null && v.isNotEmpty) return v;
-      }
-      return 'Twoja lokalizacja';
-    } catch (_) {
-      return 'Twoja lokalizacja';
+    if (_locationFallback) {
+      _locationFallback = false;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Nie udało się pobrać lokalizacji. Pokazujemy dane dla domyślnego miasta."),
+          ),
+        );
+      });
     }
   }
 
@@ -213,16 +228,54 @@ class _ForecastScreenState extends State<ForecastScreen> {
 
     if (loading) {
       return Scaffold(
-        backgroundColor: colorScheme.background,
+        backgroundColor: colorScheme.surface,
         body: const Center(child: CircularProgressIndicator()),
       );
     }
 
     if (error != null) {
       return Scaffold(
-        backgroundColor: colorScheme.background,
+        backgroundColor: colorScheme.surface,
         body: Center(
-          child: Text(error!, style: TextStyle(color: colorScheme.onBackground)),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  error!,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                GestureDetector(
+                  onTap: init,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 12,
+                    ),
+                    decoration: BoxDecoration(
+                      color: colorScheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Text(
+                      "Spróbuj ponownie",
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: colorScheme.onSurface,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       );
     }
@@ -235,7 +288,7 @@ class _ForecastScreenState extends State<ForecastScreen> {
     final forecastData = futureDays.map((d) => _dayPersonalizedForecast(d, allergensToShow)).toList();
 
     return Scaffold(
-      backgroundColor: colorScheme.background,
+      backgroundColor: colorScheme.surface,
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: _refresh,
@@ -257,7 +310,7 @@ class _ForecastScreenState extends State<ForecastScreen> {
                   fontSize: 24,
                   height: 1,
                   fontWeight: FontWeight.w700,
-                  color: colorScheme.onBackground,
+                  color: colorScheme.onSurface,
                   letterSpacing: -0.5,
                 ),
               ),
@@ -272,21 +325,21 @@ class _ForecastScreenState extends State<ForecastScreen> {
 
             const SizedBox(height: 32),
 
-            Padding(
-              padding: const EdgeInsets.only(bottom: 24),
-              child: Text(
-                "Najbliższe dni",
-                style: TextStyle(
-                  fontSize: 18,
-                  height: 1,
-                  fontWeight: FontWeight.w700,
-                  color: colorScheme.onBackground,
-                  letterSpacing: -0.5,
+            if (futureDays.isNotEmpty) ...[
+              Padding(
+                padding: const EdgeInsets.only(bottom: 24),
+                child: Text(
+                  "Najbliższe dni",
+                  style: TextStyle(
+                    fontSize: 18,
+                    height: 1,
+                    fontWeight: FontWeight.w700,
+                    color: colorScheme.onSurface,
+                    letterSpacing: -0.5,
+                  ),
                 ),
               ),
-            ),
 
-            if (futureDays.isNotEmpty) ...[
               LayoutBuilder(
                 builder: (context, constraints) {
                   final cardWidth = (constraints.maxWidth - 24) / 2.35;
@@ -303,7 +356,7 @@ class _ForecastScreenState extends State<ForecastScreen> {
                               duration: const Duration(milliseconds: 200),
                               opacity: selectedDayIndex == i
                                   ? 1.0
-                                  : (colorScheme.brightness == Brightness.dark ? 0.65 : 0.45),
+                                  : 0.45,
                               child: SizedBox(
                                 width: cardWidth,
                                 child: SmallCard(
@@ -312,7 +365,7 @@ class _ForecastScreenState extends State<ForecastScreen> {
                                   subtitle: _formatDate(_parseDayDate(futureDays[i])),
                                   iconKind: AppIconKind.grass,
                                   badgeForeground: pollenSeverityColor(forecastData[i].maxScore),
-                                  badgeBackground: pollenSeverityColor(forecastData[i].maxScore).withOpacity(0.14),
+                                  badgeBackground: pollenSeverityColor(forecastData[i].maxScore).withValues(alpha: 0.14),
                                 ),
                               ),
                             ),
@@ -383,7 +436,7 @@ class _DayDetailContent extends StatelessWidget {
           recommendation: rec,
           iconKind: AppIconKind.forecast,
           badgeForeground: pollenSeverityColor(pollenCard.colorScore),
-          badgeBackground: pollenSeverityColor(pollenCard.colorScore).withOpacity(0.14),
+          badgeBackground: pollenSeverityColor(pollenCard.colorScore).withValues(alpha: 0.14),
         ),
 
         if (allergenCards.isNotEmpty) ...[
@@ -397,7 +450,7 @@ class _DayDetailContent extends StatelessWidget {
                 fontSize: 18,
                 height: 1,
                 fontWeight: FontWeight.w700,
-                color: colorScheme.onBackground,
+                color: colorScheme.onSurface,
                 letterSpacing: -0.5,
               ),
             ),
@@ -421,7 +474,7 @@ class _DayDetailContent extends StatelessWidget {
                           subtitle: allergenCards[i].upiLabel,
                           iconKind: allergenCards[i].iconKind,
                           badgeForeground: pollenSeverityColor(allergenCards[i].colorScore),
-                          badgeBackground: pollenSeverityColor(allergenCards[i].colorScore).withOpacity(0.14),
+                          badgeBackground: pollenSeverityColor(allergenCards[i].colorScore).withValues(alpha: 0.14),
                         ),
                       ),
                     ],

@@ -21,6 +21,9 @@ class _AllergenSelectionScreenState extends State<AllergenSelectionScreen> {
   String _searchQuery = '';
   bool _saving = false;
 
+  bool get _hasChanges => !_selected.containsAll(widget.initialAllergens) ||
+      !widget.initialAllergens.every((a) => _selected.contains(a));
+
   @override
   void initState() {
     super.initState();
@@ -66,19 +69,58 @@ class _AllergenSelectionScreenState extends State<AllergenSelectionScreen> {
 
   Future<void> _save() async {
     setState(() => _saving = true);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList('selected_allergens', _selected.toList());
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList('selected_allergens', _selected.toList());
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Nie udało się zapisać alergenów.")),
+      );
+      return;
+    }
     if (!mounted) return;
     Navigator.of(context).pop();
   }
 
   Brightness get _brightness => Theme.of(context).brightness;
 
+  Future<bool> _onWillPop() async {
+    if (!_hasChanges) return true;
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Odrzucić zmiany?"),
+        content: const Text("Masz niezapisane zmiany. Czy na pewno chcesz wyjść?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text("Zostań"),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text("Odrzuć", style: TextStyle(color: AppColors.systemRed)),
+          ),
+        ],
+      ),
+    );
+    return result ?? false;
+  }
+
   @override
   Widget build(BuildContext context) {
     final backgroundColor = AppColors.background(_brightness);
 
-    return Scaffold(
+    return PopScope(
+      canPop: !_hasChanges,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        final shouldPop = await _onWillPop();
+        if (shouldPop && context.mounted) {
+          Navigator.of(context).pop();
+        }
+      },
+      child: Scaffold(
       backgroundColor: backgroundColor,
       body: SafeArea(
         child: Column(
@@ -89,7 +131,16 @@ class _AllergenSelectionScreenState extends State<AllergenSelectionScreen> {
               child: Row(
                 children: [
                   TextButton(
-                    onPressed: () => Navigator.of(context).pop(),
+                    onPressed: () async {
+                      if (!_hasChanges) {
+                        Navigator.of(context).pop();
+                        return;
+                      }
+                      final shouldPop = await _onWillPop();
+                      if (shouldPop && context.mounted) {
+                        Navigator.of(context).pop();
+                      }
+                    },
                     style: TextButton.styleFrom(
                       foregroundColor: AppColors.systemOrange,
                       padding: EdgeInsets.zero,
@@ -177,7 +228,22 @@ class _AllergenSelectionScreenState extends State<AllergenSelectionScreen> {
                   parent: AlwaysScrollableScrollPhysics(),
                 ),
                 children: [
-                  for (final group in _filteredGroups) ...[
+                  if (_filteredGroups.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 32),
+                      child: Center(
+                        child: Text(
+                          "Brak wyników",
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: AppColors.secondaryText(_brightness),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    )
+                  else
+                    for (final group in _filteredGroups) ...[
                     Padding(
                       padding: const EdgeInsets.only(bottom: 10),
                       child: Text(
@@ -204,9 +270,7 @@ class _AllergenSelectionScreenState extends State<AllergenSelectionScreen> {
                 child: FilledButton(
                   style: FilledButton.styleFrom(
                     backgroundColor: AppColors.primaryText(_brightness),
-                    foregroundColor: _brightness == Brightness.light
-                        ? AppColors.surfaceLight
-                        : AppColors.backgroundDark,
+                    foregroundColor: AppColors.surfaceLight,
                     disabledBackgroundColor: AppColors.surfaceVariant(_brightness),
                     disabledForegroundColor: AppColors.secondaryText(_brightness),
                     elevation: 0,
@@ -224,9 +288,10 @@ class _AllergenSelectionScreenState extends State<AllergenSelectionScreen> {
               ),
             ),
           ],
-        ),
-      ),
-    );
+        ),      // Column
+      ),        // SafeArea
+      ),        // Scaffold
+    );          // PopScope
   }
 
   Widget _allergenRow(AllergenOption allergen) {

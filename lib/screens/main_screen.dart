@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pylek/components/app_icons.dart';
 import 'package:pylek/theme/apple_colors.dart';
-import 'package:pylek/screens/alerts_screen.dart';
 import 'package:pylek/screens/forecast_screen.dart';
 import 'package:pylek/screens/home_screen.dart';
 import 'package:pylek/screens/journal_screen.dart';
@@ -19,11 +18,10 @@ class _MainScreenState extends State<MainScreen> {
 
   final PageController _pageController = PageController();
 
-  final pages = const [
-    HomeScreen(),
-    ForecastScreen(),
-    JournalScreen(),
-    AlertsScreen(),
+  late final List<Widget> pages = [
+    HomeScreen(onNavigateToTab: _onTabChanged),
+    const ForecastScreen(),
+    const JournalScreen(),
   ];
 
   String _title(int i) {
@@ -34,8 +32,6 @@ class _MainScreenState extends State<MainScreen> {
         return "Prognoza";
       case 2:
         return "Dzienniczek";
-      case 3:
-        return "Alerty";
       default:
         return "";
     }
@@ -52,17 +48,17 @@ class _MainScreenState extends State<MainScreen> {
 
   Widget _settingsButton() {
     final colorScheme = Theme.of(context).colorScheme;
-    final isDark = colorScheme.brightness == Brightness.dark;
 
-    return GestureDetector(
-      onTap: () => _openSettings(),
-      child: Container(
+    return Semantics(
+      button: true,
+      label: "Ustawienia",
+      child: GestureDetector(
+        onTap: () => _openSettings(),
+        child: Container(
         width: 42,
         height: 42,
         decoration: BoxDecoration(
-          color: isDark
-              ? Color.lerp(colorScheme.surfaceVariant, colorScheme.onSurface, 0.12)
-              : colorScheme.surfaceVariant,
+          color: colorScheme.surfaceContainerHighest,
           shape: BoxShape.circle,
         ),
         child: Icon(
@@ -70,6 +66,7 @@ class _MainScreenState extends State<MainScreen> {
           size: 24,
           color: AppColors.systemGray,
         ),
+      ),
       ),
     );
   }
@@ -91,11 +88,11 @@ class _MainScreenState extends State<MainScreen> {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      backgroundColor: colorScheme.background,
+      backgroundColor: colorScheme.surface,
       appBar: AppBar(
-        backgroundColor: colorScheme.background,
-        foregroundColor: colorScheme.onBackground,
-        surfaceTintColor: colorScheme.background,
+        backgroundColor: colorScheme.surface,
+        foregroundColor: colorScheme.onSurface,
+        surfaceTintColor: colorScheme.surface,
         elevation: 0,
         scrolledUnderElevation: 0,
         centerTitle: false,
@@ -130,9 +127,9 @@ class _MainScreenState extends State<MainScreen> {
         type: BottomNavigationBarType.fixed,
         currentIndex: index,
         onTap: _onTabChanged,
-        backgroundColor: colorScheme.background,
-        selectedItemColor: colorScheme.onBackground,
-        unselectedItemColor: colorScheme.onSurfaceVariant.withOpacity(0.7),
+        backgroundColor: colorScheme.surface,
+        selectedItemColor: colorScheme.onSurface,
+        unselectedItemColor: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
         items: [
           BottomNavigationBarItem(
             icon: Icon(AppIcons.of(context, AppIconKind.home)),
@@ -145,10 +142,6 @@ class _MainScreenState extends State<MainScreen> {
           BottomNavigationBarItem(
             icon: Icon(AppIcons.of(context, AppIconKind.journal)),
             label: "Dzienniczek",
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(AppIcons.of(context, AppIconKind.alerts)),
-            label: "Alerty",
           ),
         ],
       ),

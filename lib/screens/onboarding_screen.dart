@@ -7,38 +7,9 @@ import 'package:pylek/components/app_icons.dart';
 import 'package:pylek/components/home_card_badge.dart';
 import 'package:pylek/screens/main_screen.dart';
 import 'package:pylek/theme/apple_colors.dart';
-
-enum _AllergenCategory { trees, grasses, weeds }
-
-class _AllergenOption {
-  final String name;
-  final String scientificName;
-  final _AllergenCategory category;
-
-  const _AllergenOption({
-    required this.name,
-    required this.scientificName,
-    required this.category,
-  });
-}
-
-class _AllergenGroup {
-  final String title;
-  final _AllergenCategory category;
-  final List<_AllergenOption> items;
-
-  const _AllergenGroup({
-    required this.title,
-    required this.category,
-    required this.items,
-  });
-}
-
-class _CityOption {
-  final String name;
-
-  const _CityOption(this.name);
-}
+import 'package:pylek/utils/allergen_data.dart';
+import 'package:pylek/utils/cities.dart';
+import 'package:pylek/utils/location_utils.dart';
 
 enum _OnboardingStep {
   requestingLocation,
@@ -46,184 +17,7 @@ enum _OnboardingStep {
   allergenSelection,
 }
 
-const List<_CityOption> _cities = [
-  _CityOption('Warszawa'),
-  _CityOption('Kraków'),
-  _CityOption('Łódź'),
-  _CityOption('Wrocław'),
-  _CityOption('Poznań'),
-  _CityOption('Gdańsk'),
-  _CityOption('Szczecin'),
-  _CityOption('Bydgoszcz'),
-  _CityOption('Lublin'),
-  _CityOption('Białystok'),
-  _CityOption('Katowice'),
-  _CityOption('Gdynia'),
-  _CityOption('Częstochowa'),
-  _CityOption('Radom'),
-  _CityOption('Sosnowiec'),
-  _CityOption('Toruń'),
-  _CityOption('Kielce'),
-  _CityOption('Gliwice'),
-  _CityOption('Zabrze'),
-  _CityOption('Bytom'),
-  _CityOption('Olsztyn'),
-  _CityOption('Bielsko-Biała'),
-  _CityOption('Rzeszów'),
-  _CityOption('Ruda Śląska'),
-  _CityOption('Rybnik'),
-  _CityOption('Tychy'),
-  _CityOption('Opole'),
-  _CityOption('Gorzów Wielkopolski'),
-  _CityOption('Dąbrowa Górnicza'),
-  _CityOption('Elbląg'),
-  _CityOption('Płock'),
-  _CityOption('Wałbrzych'),
-  _CityOption('Włocławek'),
-  _CityOption('Zielona Góra'),
-  _CityOption('Tarnów'),
-  _CityOption('Chorzów'),
-  _CityOption('Koszalin'),
-  _CityOption('Kalisz'),
-  _CityOption('Legnica'),
-  _CityOption('Grudziądz'),
-  _CityOption('Słupsk'),
-  _CityOption('Jaworzno'),
-  _CityOption('Jastrzębie-Zdrój'),
-  _CityOption('Jelenia Góra'),
-  _CityOption('Nowy Sącz'),
-  _CityOption('Siedlce'),
-  _CityOption('Piotrków Trybunalski'),
-  _CityOption('Inowrocław'),
-  _CityOption('Suwałki'),
-  _CityOption('Mysłowice'),
-  _CityOption('Konin'),
-  _CityOption('Lubin'),
-  _CityOption('Ostrowiec Świętokrzyski'),
-  _CityOption('Gniezno'),
-  _CityOption('Leszno'),
-  _CityOption('Zamość'),
-  _CityOption('Łomża'),
-  _CityOption('Ełk'),
-  _CityOption('Przemyśl'),
-  _CityOption('Chełm'),
-  _CityOption('Mielec'),
-  _CityOption('Bełchatów'),
-  _CityOption('Tczew'),
-  _CityOption('Biała Podlaska'),
-  _CityOption('Kędzierzyn-Koźle'),
-  _CityOption('Starachowice'),
-  _CityOption('Świdnica'),
-  _CityOption('Będzin'),
-  _CityOption('Pabianice'),
-  _CityOption('Otwock'),
-  _CityOption('Zawiercie'),
-  _CityOption('Racibórz'),
-  _CityOption('Piła'),
-  _CityOption('Skierniewice'),
-  _CityOption('Ciechanów'),
-  _CityOption('Kwidzyn'),
-  _CityOption('Kołobrzeg'),
-  _CityOption('Żory'),
-  _CityOption('Wejherowo'),
-  _CityOption('Stalowa Wola'),
-  _CityOption('Nowa Sól'),
-  _CityOption('Giżycko'),
-  _CityOption('Łowicz'),
-  _CityOption('Mińsk Mazowiecki'),
-  _CityOption('Skarżysko-Kamienna'),
-  _CityOption('Żyrardów'),
-  _CityOption('Brodnica'),
-  _CityOption('Bielawa'),
-  _CityOption('Świnoujście'),
-  _CityOption('Sopot'),
-  _CityOption('Mikołów'),
-  _CityOption('Tarnowskie Góry'),
-  _CityOption('Chojnice'),
-  _CityOption('Oświęcim'),
-  _CityOption('Grodzisk Mazowiecki'),
-  _CityOption('Czerwionka-Leszczyny'),
-  _CityOption('Żary'),
-  _CityOption('Sieradz'),
-  _CityOption('Lidzbark Warmiński'),
-  _CityOption('Mława'),
-];
-
-const List<_AllergenGroup> _allergenGroups = [
-  _AllergenGroup(
-    title: 'Drzewa',
-    category: _AllergenCategory.trees,
-    items: [
-      _AllergenOption(
-        name: 'Brzoza',
-        scientificName: 'Betula',
-        category: _AllergenCategory.trees,
-      ),
-      _AllergenOption(
-        name: 'Dąb',
-        scientificName: 'Quercus',
-        category: _AllergenCategory.trees,
-      ),
-      _AllergenOption(
-        name: 'Jesion',
-        scientificName: 'Fraxinus',
-        category: _AllergenCategory.trees,
-      ),
-      _AllergenOption(
-        name: 'Leszczyna',
-        scientificName: 'Corylus',
-        category: _AllergenCategory.trees,
-      ),
-      _AllergenOption(
-        name: 'Olcha',
-        scientificName: 'Alnus',
-        category: _AllergenCategory.trees,
-      ),
-      _AllergenOption(
-        name: 'Oliwka',
-        scientificName: 'Olea',
-        category: _AllergenCategory.trees,
-      ),
-      _AllergenOption(
-        name: 'Sosna',
-        scientificName: 'Pinus',
-        category: _AllergenCategory.trees,
-      ),
-      _AllergenOption(
-        name: 'Topola',
-        scientificName: 'Populus',
-        category: _AllergenCategory.trees,
-      ),
-    ],
-  ),
-  _AllergenGroup(
-    title: 'Trawy',
-    category: _AllergenCategory.grasses,
-    items: [
-      _AllergenOption(
-        name: 'Trawy (ogólnie)',
-        scientificName: 'Poaceae',
-        category: _AllergenCategory.grasses,
-      ),
-    ],
-  ),
-  _AllergenGroup(
-    title: 'Chwasty',
-    category: _AllergenCategory.weeds,
-    items: [
-      _AllergenOption(
-        name: 'Ambrozja',
-        scientificName: 'Ambrosia',
-        category: _AllergenCategory.weeds,
-      ),
-      _AllergenOption(
-        name: 'Bylica',
-        scientificName: 'Artemisia',
-        category: _AllergenCategory.weeds,
-      ),
-    ],
-  ),
-];
+const List<String> _cities = availableCities;
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -259,13 +53,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     super.dispose();
   }
 
-  List<_AllergenGroup> get _filteredAllergenGroups {
+  List<AllergenGroup> get _filteredAllergenGroups {
     final query = _allergenSearchQuery.trim().toLowerCase();
     if (query.isEmpty) {
-      return _allergenGroups;
+      return allergenGroups;
     }
 
-    return _allergenGroups
+    return allergenGroups
         .map((group) {
           final items = group.items.where((item) {
             return item.name.toLowerCase().contains(query) ||
@@ -276,13 +70,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             return null;
           }
 
-          return _AllergenGroup(
+          return AllergenGroup(
             title: group.title,
             category: group.category,
             items: items,
           );
         })
-        .whereType<_AllergenGroup>()
+        .whereType<AllergenGroup>()
         .toList();
   }
 
@@ -304,34 +98,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     });
   }
 
-  ({Color accent, Color badgeBackground, Color badgeForeground, AppIconKind icon})
-      _categoryStyle(_AllergenCategory category) {
-    switch (category) {
-      case _AllergenCategory.trees:
-        return (
-          accent: AppColors.systemGreen,
-          badgeBackground: AppColors.systemGreen.withOpacity(0.22),
-          badgeForeground: AppColors.systemGreen,
-          icon: AppIconKind.tree,
-        );
-      case _AllergenCategory.grasses:
-        return (
-          accent: AppColors.systemGreenLight,
-          badgeBackground: AppColors.systemGreenLight.withOpacity(0.22),
-          badgeForeground: AppColors.systemGreenLight,
-          icon: AppIconKind.grass,
-        );
-      case _AllergenCategory.weeds:
-        return (
-          accent: AppColors.systemGreenLight,
-          badgeBackground: AppColors.systemGreenLight.withOpacity(0.22),
-          badgeForeground: AppColors.systemGreenLight,
-          icon: AppIconKind.grass,
-        );
-    }
-  }
 
-  List<_CityOption> get _filteredCities {
+  List<String> get _filteredCities {
     final query = _searchQuery.trim().toLowerCase();
 
     if (query.isEmpty) {
@@ -339,7 +107,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     }
 
     return _cities
-        .where((city) => city.name.toLowerCase().contains(query))
+        .where((city) => city.toLowerCase().contains(query))
         .toList();
   }
 
@@ -367,13 +135,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       if (!mounted) return;
       setState(() => _isSavingLocation = true);
 
-      final position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-      );
-      final cityName = await _resolveCityName(
-        position.latitude,
-        position.longitude,
-      );
+      final position = await tryGetLocation();
+      if (position == null) {
+        if (!mounted) return;
+        setState(() => _step = _OnboardingStep.citySelection);
+        return;
+      }
+
+      final cityName = await resolveCityName(position.latitude, position.longitude);
 
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('location_mode', 'auto');
@@ -397,52 +166,29 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     }
   }
 
-  Future<String> _resolveCityName(double latitude, double longitude) async {
-    try {
-      final placemarks = await placemarkFromCoordinates(latitude, longitude);
-
-      if (placemarks.isEmpty) {
-        return 'Twoja lokalizacja';
-      }
-
-      final placemark = placemarks.first;
-
-      for (final candidate in [
-        placemark.locality,
-        placemark.subAdministrativeArea,
-        placemark.administrativeArea,
-      ]) {
-        final value = candidate?.trim();
-        if (value != null && value.isNotEmpty) {
-          return value;
-        }
-      }
-
-      return 'Twoja lokalizacja';
-    } catch (_) {
-      return 'Twoja lokalizacja';
-    }
+  void _skipLocation() {
+    setState(() => _step = _OnboardingStep.citySelection);
   }
 
-  void _selectCity(_CityOption city) {
+  void _selectCity(String city) {
     if (_isSavingLocation) return;
-    setState(() => _selectedCity = city.name);
+    setState(() => _selectedCity = city);
   }
 
   Future<void> _confirmCitySelection() async {
     if (_selectedCity == null || _isSavingLocation) return;
 
-    final city = _cities.firstWhere((option) => option.name == _selectedCity);
+    final city = _cities.firstWhere((option) => option == _selectedCity);
     await _saveCityAndContinue(city);
   }
 
-  Future<void> _saveCityAndContinue(_CityOption city) async {
+  Future<void> _saveCityAndContinue(String city) async {
     if (_isSavingLocation) return;
 
     try {
       setState(() => _isSavingLocation = true);
 
-      final locations = await locationFromAddress('${city.name}, Polska');
+      final locations = await locationFromAddress('$city, Polska');
       if (locations.isEmpty) {
         throw Exception('Nie udało się znaleźć miasta.');
       }
@@ -453,12 +199,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       await prefs.setString('location_mode', 'manual');
       await prefs.setDouble('manual_lat', location.latitude);
       await prefs.setDouble('manual_lng', location.longitude);
-      await prefs.setString('manual_city_name', city.name);
-      await prefs.setString('selected_city_name', city.name);
+      await prefs.setString('manual_city_name', city);
+      await prefs.setString('selected_city_name', city);
 
       if (!mounted) return;
       setState(() {
-        _selectedCity = city.name;
+        _selectedCity = city;
         _isSavingLocation = false;
         _allergenSearchQuery = '';
         _allergenSearchController.clear();
@@ -481,12 +227,21 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
     setState(() => _isSavingAllergens = true);
 
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList(
-      'selected_allergens',
-      _selectedAllergens.toList(),
-    );
-    await prefs.setBool('onboarding_complete', true);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList(
+        'selected_allergens',
+        _selectedAllergens.toList(),
+      );
+      await prefs.setBool('onboarding_complete', true);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isSavingAllergens = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Nie udało się zapisać ustawień.")),
+      );
+      return;
+    }
 
     if (!mounted) return;
 
@@ -601,12 +356,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     required String label,
     required VoidCallback? onPressed,
   }) {
-    final buttonBackground = _brightness == Brightness.light
-        ? AppColors.primaryTextLight
-        : AppColors.primaryTextDark;
-    final buttonForeground = _brightness == Brightness.light
-        ? AppColors.surfaceLight
-        : AppColors.backgroundDark;
+    final buttonBackground = AppColors.primaryTextLight;
+    final buttonForeground = AppColors.surfaceLight;
 
     return SizedBox(
       width: double.infinity,
@@ -658,8 +409,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     );
   }
 
-  Widget _cityRow(_CityOption city) {
-    final selected = _selectedCity == city.name;
+  Widget _cityRow(String city) {
+    final selected = _selectedCity == city;
     const accent = AppColors.systemBlue;
 
     return Padding(
@@ -676,7 +427,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               children: [
                 HomeCardBadge(
                   iconKind: AppIconKind.locationCity,
-                  background: AppColors.systemBlue.withOpacity(0.14),
+                  background: AppColors.systemBlue.withValues(alpha: 0.14),
                   foreground: AppColors.systemBlue,
                   size: 44,
                   iconSize: 20,
@@ -687,7 +438,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        city.name,
+                        city,
                         style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
@@ -782,9 +533,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     );
   }
 
-  Widget _allergenRow(_AllergenOption allergen) {
+  Widget _allergenRow(AllergenOption allergen) {
     final selected = _selectedAllergens.contains(allergen.name);
-    final style = _categoryStyle(allergen.category);
+    final style = allergenCategoryStyle(allergen.category);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -831,7 +582,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 ),
                 _selectionIndicator(
                   selected: selected,
-                  accent: style.accent,
+                  accent: style.badgeForeground,
                 ),
               ],
             ),
@@ -919,6 +670,42 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     if (_step == _OnboardingStep.requestingLocation) {
       return Scaffold(
         backgroundColor: backgroundColor,
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CircularProgressIndicator(),
+              const SizedBox(height: 24),
+              Text(
+                "Szukam Twojej lokalizacji...",
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.primaryText(_brightness),
+                ),
+              ),
+              const SizedBox(height: 48),
+              GestureDetector(
+                onTap: _skipLocation,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceVariant(_brightness),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Text(
+                    'Pomiń',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.primaryText(_brightness),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       );
     }
 
@@ -933,7 +720,42 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           child: AnimatedSwitcher(
             duration: const Duration(milliseconds: 220),
             child: switch (_step) {
-              _OnboardingStep.requestingLocation => const SizedBox.shrink(),
+              _OnboardingStep.requestingLocation => Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const CircularProgressIndicator(),
+                      const SizedBox(height: 24),
+                      Text(
+                        "Szukam Twojej lokalizacji...",
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.primaryText(_brightness),
+                        ),
+                      ),
+                      const SizedBox(height: 48),
+                      GestureDetector(
+                        onTap: _skipLocation,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: AppColors.surfaceVariant(_brightness),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Text(
+                            'Pomiń',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.primaryText(_brightness),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               _OnboardingStep.citySelection => KeyedSubtree(
                   key: const ValueKey('city'),
                   child: _citySelectionView(context),

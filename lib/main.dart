@@ -3,18 +3,25 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 
 import 'package:pylek/screens/main_screen.dart';
 import 'package:pylek/screens/onboarding_screen.dart';
 import 'package:pylek/theme/apple_colors.dart';
 import 'package:pylek/theme/app_typography.dart';
+import 'package:pylek/utils/app_config.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await Supabase.initialize(
-    url: 'https://bbmnrxpctgyqxyoffkcd.supabase.co',
-    anonKey: 'sb_publishable_QitdPrRUsqiHnaFqAM2xCg_bdkeFWPn',
+    url: AppConfig.supabaseUrl,
+    anonKey: AppConfig.supabaseAnonKey,
+  );
+
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
   );
 
   runApp(const MyApp());
@@ -23,18 +30,11 @@ void main() async {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  ThemeData _theme({
-    required Brightness brightness,
-    required ColorScheme colorScheme,
-  }) {
-    final isDark = brightness == Brightness.dark;
-    final primaryText =
-        isDark ? AppColors.primaryTextDark : AppColors.primaryTextLight;
-    final secondaryText =
-        isDark ? AppColors.secondaryTextDark : AppColors.secondaryTextLight;
-    final background =
-        isDark ? AppColors.backgroundDark : AppColors.backgroundLight;
-    final baseTextTheme = isDark ? ThemeData.dark().textTheme : ThemeData.light().textTheme;
+  ThemeData _theme(ColorScheme colorScheme) {
+    final primaryText = AppColors.primaryTextLight;
+    final secondaryText = AppColors.secondaryTextLight;
+    final background = AppColors.backgroundLight;
+    final baseTextTheme = ThemeData.light().textTheme;
     final textTheme = AppTypography.applyPlatformFont(
       baseTextTheme.apply(
         bodyColor: primaryText,
@@ -48,8 +48,7 @@ class MyApp extends StatelessWidget {
       color: primaryText,
     );
 
-    return ThemeData.from(colorScheme: colorScheme).copyWith(
-      useMaterial3: true,
+    return ThemeData.from(colorScheme: colorScheme, useMaterial3: true).copyWith(
       scaffoldBackgroundColor: background,
       appBarTheme: AppBarTheme(
         backgroundColor: background,
@@ -60,12 +59,12 @@ class MyApp extends StatelessWidget {
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
         backgroundColor: background,
         selectedItemColor: primaryText,
-        unselectedItemColor: secondaryText.withOpacity(0.75),
+        unselectedItemColor: secondaryText.withValues(alpha: 0.75),
       ),
       textTheme: textTheme,
       primaryTextTheme: textTheme,
       cupertinoOverrideTheme: CupertinoThemeData(
-        brightness: brightness,
+        brightness: Brightness.light,
         primaryColor: AppColors.systemBlue,
         scaffoldBackgroundColor: background,
         textTheme: CupertinoTextThemeData(
@@ -99,17 +98,9 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      debugShowCheckedModeBanner: false,
+      debugShowCheckedModeBanner: kReleaseMode,
       title: 'Pyłek',
-      themeMode: ThemeMode.system,
-      theme: _theme(
-        brightness: Brightness.light,
-        colorScheme: AppColors.lightColorScheme,
-      ),
-      darkTheme: _theme(
-        brightness: Brightness.dark,
-        colorScheme: AppColors.darkColorScheme,
-      ),
+      theme: _theme(AppColors.lightColorScheme),
       home: const _StartupGate(),
     );
   }
@@ -142,10 +133,8 @@ class _StartupGateState extends State<_StartupGate> {
       future: _isOnboardingDone,
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
-          final brightness = Theme.of(context).brightness;
-
           return Scaffold(
-            backgroundColor: AppColors.background(brightness),
+            backgroundColor: AppColors.backgroundLight,
             body: const Center(
               child: CircularProgressIndicator(
                 color: AppColors.systemBlue,
@@ -163,18 +152,3 @@ class _StartupGateState extends State<_StartupGate> {
     );
   }
 }
-
-
-  // Future<void> _sendFeedback() async {
-  //   final Uri emailUri = Uri(
-  //     scheme: 'mailto',
-  //     path: 'jakubgorzny@icloud.com',
-  //     query: Uri.encodeFull(
-  //       'subject=Opinia o Pyłku &body=Wpisz tutaj swoją opinię...',
-  //     ),
-  //   );
-
-  //   if (await canLaunchUrl(emailUri)) {
-  //     await launchUrl(emailUri);
-  //   }
-  // }

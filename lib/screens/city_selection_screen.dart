@@ -5,114 +5,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pylek/components/app_icons.dart';
 import 'package:pylek/components/home_card_badge.dart';
 import 'package:pylek/theme/apple_colors.dart';
+import 'package:pylek/utils/cities.dart';
 
 class _CityOption {
   final String name;
   const _CityOption(this.name);
 }
 
-const List<_CityOption> _cities = [
-  _CityOption('Warszawa'),
-  _CityOption('Kraków'),
-  _CityOption('Łódź'),
-  _CityOption('Wrocław'),
-  _CityOption('Poznań'),
-  _CityOption('Gdańsk'),
-  _CityOption('Szczecin'),
-  _CityOption('Bydgoszcz'),
-  _CityOption('Lublin'),
-  _CityOption('Białystok'),
-  _CityOption('Katowice'),
-  _CityOption('Gdynia'),
-  _CityOption('Częstochowa'),
-  _CityOption('Radom'),
-  _CityOption('Sosnowiec'),
-  _CityOption('Toruń'),
-  _CityOption('Kielce'),
-  _CityOption('Gliwice'),
-  _CityOption('Zabrze'),
-  _CityOption('Bytom'),
-  _CityOption('Olsztyn'),
-  _CityOption('Bielsko-Biała'),
-  _CityOption('Rzeszów'),
-  _CityOption('Ruda Śląska'),
-  _CityOption('Rybnik'),
-  _CityOption('Tychy'),
-  _CityOption('Opole'),
-  _CityOption('Gorzów Wielkopolski'),
-  _CityOption('Dąbrowa Górnicza'),
-  _CityOption('Elbląg'),
-  _CityOption('Płock'),
-  _CityOption('Wałbrzych'),
-  _CityOption('Włocławek'),
-  _CityOption('Zielona Góra'),
-  _CityOption('Tarnów'),
-  _CityOption('Chorzów'),
-  _CityOption('Koszalin'),
-  _CityOption('Kalisz'),
-  _CityOption('Legnica'),
-  _CityOption('Grudziądz'),
-  _CityOption('Słupsk'),
-  _CityOption('Jaworzno'),
-  _CityOption('Jastrzębie-Zdrój'),
-  _CityOption('Jelenia Góra'),
-  _CityOption('Nowy Sącz'),
-  _CityOption('Siedlce'),
-  _CityOption('Piotrków Trybunalski'),
-  _CityOption('Inowrocław'),
-  _CityOption('Suwałki'),
-  _CityOption('Mysłowice'),
-  _CityOption('Konin'),
-  _CityOption('Lubin'),
-  _CityOption('Ostrowiec Świętokrzyski'),
-  _CityOption('Gniezno'),
-  _CityOption('Leszno'),
-  _CityOption('Zamość'),
-  _CityOption('Łomża'),
-  _CityOption('Ełk'),
-  _CityOption('Przemyśl'),
-  _CityOption('Chełm'),
-  _CityOption('Mielec'),
-  _CityOption('Bełchatów'),
-  _CityOption('Tczew'),
-  _CityOption('Biała Podlaska'),
-  _CityOption('Kędzierzyn-Koźle'),
-  _CityOption('Starachowice'),
-  _CityOption('Świdnica'),
-  _CityOption('Będzin'),
-  _CityOption('Pabianice'),
-  _CityOption('Otwock'),
-  _CityOption('Zawiercie'),
-  _CityOption('Racibórz'),
-  _CityOption('Piła'),
-  _CityOption('Skierniewice'),
-  _CityOption('Ciechanów'),
-  _CityOption('Kwidzyn'),
-  _CityOption('Kołobrzeg'),
-  _CityOption('Żory'),
-  _CityOption('Wejherowo'),
-  _CityOption('Stalowa Wola'),
-  _CityOption('Nowa Sól'),
-  _CityOption('Giżycko'),
-  _CityOption('Łowicz'),
-  _CityOption('Mińsk Mazowiecki'),
-  _CityOption('Skarżysko-Kamienna'),
-  _CityOption('Żyrardów'),
-  _CityOption('Brodnica'),
-  _CityOption('Bielawa'),
-  _CityOption('Świnoujście'),
-  _CityOption('Sopot'),
-  _CityOption('Mikołów'),
-  _CityOption('Tarnowskie Góry'),
-  _CityOption('Chojnice'),
-  _CityOption('Oświęcim'),
-  _CityOption('Grodzisk Mazowiecki'),
-  _CityOption('Czerwionka-Leszczyny'),
-  _CityOption('Żary'),
-  _CityOption('Sieradz'),
-  _CityOption('Lidzbark Warmiński'),
-  _CityOption('Mława'),
-];
+final List<_CityOption> _cities = availableCities.map((c) => _CityOption(c)).toList();
 
 class CitySelectionScreen extends StatefulWidget {
   final String? currentCity;
@@ -277,18 +177,34 @@ class _CitySelectionScreenState extends State<CitySelectionScreen> {
                   parent: AlwaysScrollableScrollPhysics(),
                 ),
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: Text(
-                      'Miasta',
-                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
+                  if (_filteredCities.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 32),
+                      child: Center(
+                        child: Text(
+                          "Brak wyników",
+                          style: TextStyle(
+                            fontSize: 14,
                             color: AppColors.secondaryText(_brightness),
+                            fontWeight: FontWeight.w500,
                           ),
+                        ),
+                      ),
+                    )
+                  else ...[
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: Text(
+                        'Miasta',
+                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.secondaryText(_brightness),
+                            ),
+                      ),
                     ),
-                  ),
-                  for (final city in _filteredCities) _cityRow(city),
+                    for (final city in _filteredCities) _cityRow(city),
+                  ],
                 ],
               ),
             ),
@@ -315,7 +231,7 @@ class _CitySelectionScreenState extends State<CitySelectionScreen> {
               children: [
                 HomeCardBadge(
                   iconKind: AppIconKind.locationCity,
-                  background: AppColors.systemBlue.withOpacity(0.14),
+                  background: AppColors.systemBlue.withValues(alpha: 0.14),
                   foreground: AppColors.systemBlue,
                   size: 44,
                   iconSize: 20,

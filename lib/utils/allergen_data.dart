@@ -70,19 +70,19 @@ const List<AllergenGroup> allergenGroups = [
       return (
         icon: AppIconKind.tree,
         badgeForeground: AppColors.systemGreen,
-        badgeBackground: AppColors.systemGreen.withOpacity(0.22),
+        badgeBackground: AppColors.systemGreen.withValues(alpha: 0.22),
       );
     case AllergenCategory.grasses:
       return (
         icon: AppIconKind.grass,
         badgeForeground: AppColors.systemGreenLight,
-        badgeBackground: AppColors.systemGreenLight.withOpacity(0.22),
+        badgeBackground: AppColors.systemGreenLight.withValues(alpha: 0.22),
       );
     case AllergenCategory.weeds:
       return (
         icon: AppIconKind.grass,
         badgeForeground: AppColors.systemGreenLight,
-        badgeBackground: AppColors.systemGreenLight.withOpacity(0.22),
+        badgeBackground: AppColors.systemGreenLight.withValues(alpha: 0.22),
       );
   }
 }

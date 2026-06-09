@@ -57,11 +57,11 @@ class AppIcons {
       case AppIconKind.faceSmiling:
         return SFSymbols.smiley_fill;
       case AppIconKind.faceNeutral:
-        return SFSymbols.smiley_fill;
+        return SFSymbols.smiley;
       case AppIconKind.faceFrowning:
         return SFSymbols.smiley_fill;
       case AppIconKind.feedback:
-        return SFSymbols.smiley_fill;
+        return SFSymbols.chat_bubble_fill;
       case AppIconKind.forecast:
         return SFSymbols.cloud_fill;
       case AppIconKind.home:
@@ -73,7 +73,7 @@ class AppIcons {
       case AppIconKind.locationCity:
         return SFSymbols.location_fill;
       case AppIconKind.grass:
-        return Icons.grass_rounded;
+        return SFSymbols.tree;
       case AppIconKind.mail:
         return SFSymbols.envelope_fill;
       case AppIconKind.myLocation:

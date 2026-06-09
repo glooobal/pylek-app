@@ -446,7 +446,7 @@ bool _pollenTypeMatchesAllergen(
     return (
       icon: AppIconKind.grass,
       badgeForeground: AppColors.systemGreenLight,
-      badgeBackground: AppColors.systemGreenLight.withOpacity(0.22),
+      badgeBackground: AppColors.systemGreenLight.withValues(alpha: 0.22),
     );
   }
 
@@ -454,14 +454,14 @@ bool _pollenTypeMatchesAllergen(
     return (
       icon: AppIconKind.grass,
       badgeForeground: AppColors.systemGreenLight,
-      badgeBackground: AppColors.systemGreenLight.withOpacity(0.22),
+      badgeBackground: AppColors.systemGreenLight.withValues(alpha: 0.22),
     );
   }
 
   return (
     icon: AppIconKind.tree,
     badgeForeground: AppColors.systemGreen,
-    badgeBackground: AppColors.systemGreen.withOpacity(0.22),
+    badgeBackground: AppColors.systemGreen.withValues(alpha: 0.22),
   );
 }
 
@@ -570,47 +570,6 @@ bool _selectionIncludesWeeds(List<String> selectedAllergens) {
   return selectedAllergens.any(
     (name) => name == 'Ambrozja' || name == 'Bylica',
   );
-}
-
-String? pollenRecommendation(
-  List<dynamic> pollenTypes,
-  List<String> selectedAllergens,
-) {
-  if (selectedAllergens.isEmpty) return null;
-
-  final hasTrees = _selectionIncludesTrees(selectedAllergens);
-  final hasGrasses = _selectionIncludesGrasses(selectedAllergens);
-  final hasWeeds = _selectionIncludesWeeds(selectedAllergens);
-
-  String? bestRec;
-  int bestValue = -1;
-
-  for (final pollenType in pollenTypes) {
-    if (pollenType is! Map) continue;
-
-    final code = (pollenType['code'] as String?)?.toUpperCase();
-    if (code == null) continue;
-
-    final matches = (code == 'TREE' && hasTrees) ||
-        (code == 'GRASS' && hasGrasses) ||
-        (code == 'WEED' && hasWeeds);
-    if (!matches) continue;
-
-    final indexInfo = pollenType['indexInfo'];
-    final value = (indexInfo is Map) ? indexInfo['value'] : null;
-    final intValue =
-        (value is int) ? value : ((value is num) ? value.round() : 0);
-
-    if (intValue < bestValue) continue;
-
-    final recommendations = pollenType['healthRecommendations'];
-    if (recommendations is! List || recommendations.isEmpty) continue;
-
-    bestValue = intValue;
-    bestRec = recommendations[0].toString();
-  }
-
-  return bestRec;
 }
 
 String insightSeverityTitle(int colorScore) {

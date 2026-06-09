@@ -130,7 +130,7 @@ List<PollutantCardData> buildPollutantCards(List<dynamic> pollutants) {
         subtitle: subtitle,
         iconKind: AppIconKind.air,
         badgeForeground: color,
-        badgeBackground: color.withOpacity(0.14),
+        badgeBackground: color.withValues(alpha: 0.14),
       ),
     );
   }

@@ -1,39 +1,19 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:pylek/components/app_icons.dart';
 import 'package:pylek/theme/apple_colors.dart';
 
-import 'package:geolocator/geolocator.dart';
-import 'package:geocoding/geocoding.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import 'package:pylek/screens/alerts_screen.dart';
 import 'package:pylek/screens/allergen_selection_screen.dart';
-import 'package:pylek/screens/journal_screen.dart';
 
 import 'package:pylek/components/insight_card.dart';
 import 'package:pylek/components/small_card.dart';
 import 'package:pylek/utils/allergen_data.dart';
 import 'package:pylek/utils/pollen_home.dart';
 import 'package:pylek/utils/air_quality_home.dart';
-
-const int _tileZoom = 13;
-const double _mercatorOriginShift = 20037508.342789244;
-const double _tileSizeMeters = 40075016.685578488 / (1 << _tileZoom);
-
-String _tileIdFromCoordinates(double latitude, double longitude) {
-  final clampedLatitude = latitude.clamp(-85.05112878, 85.05112878);
-  final latRadians = clampedLatitude * math.pi / 180;
-  final xMeters = longitude * _mercatorOriginShift / 180;
-  final yMeters = math.log(math.tan(math.pi / 4 + latRadians / 2)) * _mercatorOriginShift / math.pi;
-
-  final tileX = ((xMeters + _mercatorOriginShift) / _tileSizeMeters).floor();
-  final tileY = ((_mercatorOriginShift - yMeters) / _tileSizeMeters).floor();
-
-  return 'wmz${_tileZoom}:x$tileX:y$tileY';
-}
+import 'package:pylek/utils/data_cache.dart';
+import 'package:pylek/utils/location_utils.dart';
 
 String _formatFetchTime(dynamic rawValue) {
   if (rawValue == null) {
@@ -57,7 +37,9 @@ String _formatFetchTime(dynamic rawValue) {
 }
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final ValueChanged<int>? onNavigateToTab;
+
+  const HomeScreen({super.key, this.onNavigateToTab});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -68,7 +50,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   bool loading = true;
   String? error;
+  bool _locationFallback = false;
 
+  bool hasPollenData = false;
+  bool hasAirData = false;
   int pollenColorScore = 0;
   String pollenFetchedAt = '';
   String insightTitle = '';
@@ -106,14 +91,14 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!mounted) return;
       setState(() {
         loading = false;
-        error = e.toString();
+        error = "Nie udało się pobrać danych. Sprawdź połączenie z internetem.";
       });
     }
   }
 
   Future<void> _refresh() async {
     try {
-      await _fetchData();
+      await _fetchData(forceRefresh: true);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -126,7 +111,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<void> _fetchData() async {
+  Future<void> _fetchData({bool forceRefresh = false}) async {
     final prefs = await SharedPreferences.getInstance();
 
     final mode = await _getLocationMode();
@@ -140,155 +125,191 @@ class _HomeScreenState extends State<HomeScreen> {
       lng = prefs.getDouble('manual_lng') ?? 21.0122;
       resolvedCityName = prefs.getString('manual_city_name') ?? 'Twoja lokalizacja';
     } else {
-      final position = await _tryGetLocation();
+      final position = await tryGetLocation();
       if (position != null) {
         lat = position.latitude;
         lng = position.longitude;
-        resolvedCityName = await _resolveCityName(lat, lng);
+        resolvedCityName = await resolveCityName(lat, lng);
       } else {
+        _locationFallback = true;
         lat = prefs.getDouble('auto_lat') ?? 52.2297;
         lng = prefs.getDouble('auto_lng') ?? 21.0122;
         resolvedCityName = prefs.getString('auto_city_name') ?? 'Twoja lokalizacja';
       }
     }
-    final tileId = _tileIdFromCoordinates(lat, lng);
 
-    final results = await Future.wait([
-      _client.functions.invoke(
-        'get_pollen',
-        body: {
-          "latitude": lat,
-          "longitude": lng,
-          "tile_id": tileId,
-          "tile_zoom": _tileZoom,
-        },
-      ),
-      _client.functions.invoke(
-        'get_aq',
-        body: {
-          "latitude": lat,
-          "longitude": lng,
-          "tile_id": tileId,
-          "tile_zoom": _tileZoom,
-        },
-      ),
-    ]);
+    final tileId = tileIdFromCoordinates(lat, lng);
 
-    final pollenRes = results[0];
-    final pollenData = pollenRes.data['data'];
-    final pollenDateLabel = formatPollenFetchDate(pollenRes.data['fetched_at']);
-    final today = pollenData['dailyInfo'][0];
-    final pollenTypes = today['pollenTypeInfo'] ?? [];
-    final plants = today['plantInfo'] ?? [];
+    Map<String, dynamic>? pollenResponse;
+    if (!forceRefresh) {
+      pollenResponse = await cachedPollenResponse(lat, lng);
+    }
+    if (pollenResponse == null) {
+      try {
+        final res = await _client.functions
+            .invoke('get_pollen', body: {
+              "latitude": lat,
+              "longitude": lng,
+              "tile_id": tileId,
+              "tile_zoom": tileZoom,
+            })
+            .timeout(const Duration(seconds: 30));
+        if (res.data is Map) {
+          pollenResponse = res.data as Map<String, dynamic>;
+          await storeCachedPollenResponse(lat, lng, pollenResponse);
+        }
+      } catch (_) {
+        pollenResponse = await staleCachedPollenResponse(lat, lng);
+      }
+    }
+
+    Map<String, dynamic>? airResponse;
+    if (!forceRefresh) {
+      airResponse = await cachedAirResponse(lat, lng);
+    }
+    if (airResponse == null) {
+      try {
+        final res = await _client.functions
+            .invoke('get_aq', body: {
+              "latitude": lat,
+              "longitude": lng,
+              "tile_id": tileId,
+              "tile_zoom": tileZoom,
+            })
+            .timeout(const Duration(seconds: 30));
+        if (res.data is Map) {
+          airResponse = res.data as Map<String, dynamic>;
+          await storeCachedAirResponse(lat, lng, airResponse);
+        }
+      } catch (_) {
+        airResponse = await staleCachedAirResponse(lat, lng);
+      }
+    }
+
+    _applyResponses(pollenResponse, airResponse, prefs, resolvedCityName);
+    if (_locationFallback) {
+      _locationFallback = false;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Nie udało się pobrać lokalizacji. Pokazujemy dane dla domyślnego miasta."),
+          ),
+        );
+      });
+    }
+  }
+
+  void _applyResponses(
+    Map<String, dynamic>? pollenResponse,
+    Map<String, dynamic>? airResponse,
+    SharedPreferences prefs,
+    String resolvedCityName,
+  ) {
     final selectedAllergens = prefs.getStringList('selected_allergens') ?? [];
     final hasSelected = selectedAllergens.isNotEmpty;
-    final allergensToShow = hasSelected
-        ? selectedAllergens
-        : allergenGroups.expand((g) => g.items).map((o) => o.name).toList();
-    final pollenCard = resolvePollenCard(
-      pollenTypes: pollenTypes,
-      plants: plants,
-      selectedAllergens: selectedAllergens,
-    );
-    final allergenCards = buildSelectedAllergenCards(
-      selectedAllergens: allergensToShow,
-      pollenTypes: pollenTypes,
-      plants: plants,
-    );
+    bool pollenDataSet = false;
 
-    final aqRes = results[1];
-    final aqData = aqRes.data['data'];
-    final fetchedAtAir = _formatFetchTime(aqRes.data['fetched_at']);
-    final index = aqData['indexes']?[0];
-    final aqi = index?['aqi'] ?? 0;
-    final category = index?['category'] ?? "Brak danych";
-    final pollutants = aqData['pollutants'] ?? [];
-    final builtPollutantCards = buildPollutantCards(pollutants);
+    if (pollenResponse != null) {
+      final pollenData = pollenResponse['data'];
+      final pollenDateLabel = formatPollenFetchDate(pollenResponse['fetched_at']);
+      final dailyInfo = (pollenData is Map ? pollenData['dailyInfo'] as List<dynamic>? : null) ?? [];
+      if (dailyInfo.isNotEmpty) {
+        final today = dailyInfo[0];
+        final pollenTypes = today['pollenTypeInfo'] ?? [];
+        final plants = today['plantInfo'] ?? [];
+        final allergensToShow = hasSelected
+            ? selectedAllergens
+            : allergenGroups.expand((g) => g.items).map((o) => o.name).toList();
+        final pollenCard = resolvePollenCard(
+          pollenTypes: pollenTypes,
+          plants: plants,
+          selectedAllergens: selectedAllergens,
+        );
+        final allergenCards = buildSelectedAllergenCards(
+          selectedAllergens: allergensToShow,
+          pollenTypes: pollenTypes,
+          plants: plants,
+        );
+        final title = insightSeverityTitle(pollenCard.colorScore);
+        final desc = buildInsightDescription(
+            pollenCard.colorScore, pollenTypes, plants, selectedAllergens);
+        final rec = buildInsightRecommendation(pollenCard.colorScore);
 
-    if (!mounted) return;
-
-    final title = insightSeverityTitle(pollenCard.colorScore);
-    final desc = buildInsightDescription(pollenCard.colorScore, pollenTypes, plants, selectedAllergens);
-    final rec = buildInsightRecommendation(pollenCard.colorScore);
-
-    setState(() {
-      pollenColorScore = pollenCard.colorScore;
-      pollenFetchedAt = pollenDateLabel;
-      insightTitle = title;
-      insightDescription = desc;
-      insightRecommendation = rec;
-      hasSelectedAllergens = hasSelected;
-      allergenPollenCards = allergenCards;
-      airAqi = aqi;
-      airCategory = category;
-      airFetchedAt = fetchedAtAir;
-      pollutantCards = builtPollutantCards;
-      cityName = resolvedCityName;
-      loading = false;
-    });
-  }
-
-
-
-  Future<Position?> _tryGetLocation() async {
-    final enabled = await Geolocator.isLocationServiceEnabled();
-    if (!enabled) return null;
-
-    final permission = await Geolocator.checkPermission();
-    if (permission != LocationPermission.always &&
-        permission != LocationPermission.whileInUse) return null;
-
-    return Geolocator.getCurrentPosition(
-      desiredAccuracy: LocationAccuracy.high,
-    );
-  }
-
-  Future<String> _resolveCityName(double latitude, double longitude) async {
-    try {
-      final placemarks = await placemarkFromCoordinates(latitude, longitude);
-
-      if (placemarks.isEmpty) {
-        return 'Twoja lokalizacja';
+        if (!mounted) return;
+        setState(() {
+          hasPollenData = true;
+          pollenColorScore = pollenCard.colorScore;
+          pollenFetchedAt = pollenDateLabel;
+          insightTitle = title;
+          insightDescription = desc;
+          insightRecommendation = rec;
+          hasSelectedAllergens = hasSelected;
+          allergenPollenCards = allergenCards;
+        });
+        pollenDataSet = true;
       }
+    }
 
-      final placemark = placemarks.first;
+    if (!pollenDataSet) {
+      if (!mounted) return;
+      setState(() {
+        hasPollenData = false;
+        pollenColorScore = 0;
+        pollenFetchedAt = '';
+        insightTitle = '';
+        insightDescription = '';
+        insightRecommendation = '';
+        hasSelectedAllergens = hasSelected;
+        allergenPollenCards = [];
+      });
+    }
 
-      final candidates = [
-        placemark.locality,
-        placemark.subAdministrativeArea,
-        placemark.administrativeArea,
-      ];
+    if (airResponse != null) {
+      final aqData = airResponse['data'];
+      final fetchedAtAir = _formatFetchTime(airResponse['fetched_at']);
+      final index = aqData is Map ? (aqData['indexes']?[0]) : null;
+      final aqi = index?['aqi'] ?? 0;
+      final category = index?['category'] ?? "Brak danych";
+      final pollutants = aqData is Map ? aqData['pollutants'] ?? [] : [];
+      final builtPollutantCards = buildPollutantCards(pollutants);
 
-      for (final candidate in candidates) {
-        final value = candidate?.trim();
-        if (value != null && value.isNotEmpty) {
-          return value;
-        }
-      }
-
-      return 'Twoja lokalizacja';
-    } catch (_) {
-      return 'Twoja lokalizacja';
+      if (!mounted) return;
+      setState(() {
+        hasAirData = true;
+        airAqi = aqi;
+        airCategory = category;
+        airFetchedAt = fetchedAtAir;
+        pollutantCards = builtPollutantCards;
+        cityName = resolvedCityName;
+        loading = false;
+      });
+    } else {
+      if (!mounted) return;
+      setState(() {
+        hasAirData = false;
+        airAqi = 0;
+        airCategory = "Brak danych";
+        airFetchedAt = '';
+        pollutantCards = [];
+        cityName = resolvedCityName;
+        loading = false;
+      });
     }
   }
 
   void _openDetails(String type) {
     switch (type) {
+      case 'forecast':
+        widget.onNavigateToTab?.call(1);
+        break;
       case 'journal':
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => const JournalScreen(),
-          ),
-        );
+        widget.onNavigateToTab?.call(2);
         break;
       case 'alerts':
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => const AlertsScreen(),
-          ),
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Alerty będą dostępne wkrótce.')),
         );
-        break;
-      default:
         break;
     }
   }
@@ -314,7 +335,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     if (loading) {
       return Scaffold(
-        backgroundColor: colorScheme.background,
+        backgroundColor: colorScheme.surface,
         body: const Center(
           child: CircularProgressIndicator(),
         ),
@@ -323,18 +344,53 @@ class _HomeScreenState extends State<HomeScreen> {
 
     if (error != null) {
       return Scaffold(
-        backgroundColor: colorScheme.background,
+        backgroundColor: colorScheme.surface,
         body: Center(
-          child: Text(
-            error!,
-            style: TextStyle(color: colorScheme.onBackground),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  error!,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                GestureDetector(
+                  onTap: _init,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 12,
+                    ),
+                    decoration: BoxDecoration(
+                      color: colorScheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Text(
+                      "Spróbuj ponownie",
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: colorScheme.onSurface,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       );
     }
 
     return Scaffold(
-      backgroundColor: colorScheme.background,
+      backgroundColor: colorScheme.surface,
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: _refresh,
@@ -356,22 +412,32 @@ class _HomeScreenState extends State<HomeScreen> {
                   fontSize: 24,
                   height: 1,
                   fontWeight: FontWeight.w700,
-                  color: colorScheme.onBackground,
+                  color: colorScheme.onSurface,
                   letterSpacing: -0.5,
                 ),
               ),
             ),
 
-            InsightCard(
-              label: "Dzisiejsze podsumowanie",
-              title: insightTitle,
-              description: insightDescription,
-              recommendation: insightRecommendation,
-              iconKind: AppIconKind.grass,
-              fetchedAt: pollenFetchedAt.isEmpty ? null : pollenFetchedAt,
-              badgeForeground: pollenSeverityColor(pollenColorScore),
-              badgeBackground: pollenSeverityColor(pollenColorScore).withOpacity(0.14),
-            ),
+            if (hasPollenData)
+              InsightCard(
+                label: "Dzisiejsze podsumowanie",
+                title: insightTitle,
+                description: insightDescription,
+                recommendation: insightRecommendation,
+                iconKind: AppIconKind.grass,
+                fetchedAt: pollenFetchedAt.isEmpty ? null : pollenFetchedAt,
+                badgeForeground: pollenSeverityColor(pollenColorScore),
+                badgeBackground: pollenSeverityColor(pollenColorScore).withValues(alpha: 0.14),
+              )
+            else
+              InsightCard(
+                label: "Dzisiejsze podsumowanie",
+                title: "Brak danych o pyleniu",
+                description: "Nie udało się pobrać dzisiejszych danych. Sprawdź połączenie z internetem.",
+                iconKind: AppIconKind.grass,
+                badgeForeground: AppColors.systemGray,
+                badgeBackground: AppColors.systemGray.withValues(alpha: 0.14),
+              ),
 
             if (allergenPollenCards.isNotEmpty) ...[
               SizedBox(height: 32),
@@ -425,7 +491,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               subtitle: allergenPollenCards[i].upiLabel,
                               iconKind: allergenPollenCards[i].iconKind,
                               badgeForeground: pollenSeverityColor(allergenPollenCards[i].colorScore),
-                              badgeBackground: pollenSeverityColor(allergenPollenCards[i].colorScore).withOpacity(0.14),
+                              badgeBackground: pollenSeverityColor(allergenPollenCards[i].colorScore).withValues(alpha: 0.14),
                             ),
                           ),
                         ],
@@ -438,7 +504,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
             SizedBox(height: 32),
 
-            if (pollutantCards.isNotEmpty) ...[
+            if (hasAirData) ...[
               Padding(
                     padding: EdgeInsets.only(bottom: 24),
                     child: Text(
@@ -447,7 +513,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       fontSize: 18,
                       height: 1,
                       fontWeight: FontWeight.w700,
-                      color: colorScheme.onBackground,
+                      color: colorScheme.onSurface,
                       letterSpacing: -0.5,
                   ),
                 ),
@@ -497,7 +563,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   fontSize: 18,
                   height: 1,
                   fontWeight: FontWeight.w700,
-                  color: colorScheme.onBackground,
+                  color: colorScheme.onSurface,
                   letterSpacing: -0.5,
                 ),
               ),
@@ -519,7 +585,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           value: "Najbliższe dni",
                           iconKind: AppIconKind.forecast,
                           badgeForeground: AppColors.systemTeal,
-                          badgeBackground: AppColors.systemTeal.withOpacity(0.12),
+                          badgeBackground: AppColors.systemTeal.withValues(alpha: 0.12),
                           onTap: () => _openDetails("forecast"),
                           showChevron: true,
                         ),
@@ -532,21 +598,8 @@ class _HomeScreenState extends State<HomeScreen> {
                           value: "Zapisz wpis",
                           iconKind: AppIconKind.journal,
                           badgeForeground: AppColors.systemYellow,
-                          badgeBackground: AppColors.systemYellow.withOpacity(0.12),
+                          badgeBackground: AppColors.systemYellow.withValues(alpha: 0.12),
                           onTap: () => _openDetails("journal"),
-                          showChevron: true,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      SizedBox(
-                        width: cardWidth,
-                        child: SmallCard(
-                          title: "Alerty",
-                          value: "Dodaj alert",
-                          iconKind: AppIconKind.alerts,
-                          badgeForeground: AppColors.systemPink,
-                          badgeBackground: AppColors.systemPink.withOpacity(0.12),
-                          onTap: () => _openDetails("alerts"),
                           showChevron: true,
                         ),
                       ),

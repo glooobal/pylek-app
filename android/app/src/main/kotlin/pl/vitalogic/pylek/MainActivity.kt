@@ -1,4 +1,4 @@
-package com.example.pylek
+package pl.vitalogic.pylek
 
 import io.flutter.embedding.android.FlutterActivity
 

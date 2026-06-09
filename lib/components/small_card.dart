@@ -34,7 +34,7 @@ class SmallCard extends StatelessWidget {
     final card = Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: colorScheme.surface,
+        color: colorScheme.surfaceContainer,
         borderRadius: BorderRadius.circular(isSection ? 28 : 22),
       ),
       child: Column(
@@ -45,7 +45,7 @@ class SmallCard extends StatelessWidget {
             children: [
               HomeCardBadge(
                 iconKind: iconKind,
-                background: badgeBackground ?? colorScheme.surfaceVariant,
+                background: badgeBackground ?? colorScheme.surfaceContainerHighest,
                 foreground: badgeForeground ?? colorScheme.onSurface,
                 size: isSection ? 40 : 32,
                 iconSize: isSection ? 19 : 16,

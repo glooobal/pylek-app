@@ -31,7 +31,7 @@ class InsightCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: colorScheme.surface,
+        color: colorScheme.surfaceContainer,
         borderRadius: BorderRadius.circular(22),
       ),
       child: Column(
@@ -42,7 +42,7 @@ class InsightCard extends StatelessWidget {
             children: [
               HomeCardBadge(
                 iconKind: iconKind,
-                background: badgeBackground ?? colorScheme.surfaceVariant,
+                background: badgeBackground ?? colorScheme.surfaceContainerHighest,
                 foreground: badgeForeground ?? colorScheme.onSurface,
                 size: 32,
                 iconSize: 16,

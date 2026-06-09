@@ -24,20 +24,45 @@ class JournalEntry {
   factory JournalEntry.fromJson(Map<String, dynamic> json) => JournalEntry(
         date: json['date'] as String,
         severity: json['severity'] as int,
-        symptoms: (json['symptoms'] as List).cast<String>(),
+        symptoms: (json['symptoms'] as List).map((e) => e as String).toList(),
         notes: json['notes'] as String? ?? '',
       );
+}
+
+String _obfuscate(String input) {
+  final bytes = utf8.encode(input);
+  final key = 0x5A;
+  final obscured = bytes.map((b) => b ^ key).toList();
+  return base64Encode(obscured);
+}
+
+String _deobfuscate(String input) {
+  try {
+    final obscured = base64Decode(input);
+    final key = 0x5A;
+    final bytes = obscured.map((b) => b ^ key).toList();
+    return utf8.decode(bytes);
+  } catch (_) {
+    return input;
+  }
 }
 
 class JournalService {
   static const _key = 'journal_entries';
 
   Future<List<JournalEntry>> loadEntries() async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_key);
-    if (raw == null || raw.isEmpty) return [];
-    final list = jsonDecode(raw) as List;
-    return list.map((e) => JournalEntry.fromJson(e as Map<String, dynamic>)).toList();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_key);
+      if (raw == null || raw.isEmpty) return [];
+      final decoded = _deobfuscate(raw);
+      final list = jsonDecode(decoded) as List;
+      return list
+          .map((e) => JournalEntry.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } catch (_) {
+      return [];
+    }
   }
 
   Future<void> saveEntry(JournalEntry entry) async {
@@ -70,6 +95,7 @@ class JournalService {
   Future<void> _persist(List<JournalEntry> entries) async {
     final prefs = await SharedPreferences.getInstance();
     final raw = jsonEncode(entries.map((e) => e.toJson()).toList());
-    await prefs.setString(_key, raw);
+    final obscured = _obfuscate(raw);
+    await prefs.setString(_key, obscured);
   }
 }

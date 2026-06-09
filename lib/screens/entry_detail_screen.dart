@@ -2,58 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:pylek/components/app_icons.dart';
 import 'package:pylek/theme/apple_colors.dart';
 import 'package:pylek/utils/journal_service.dart';
-
-const List<String> _severityLevels = [
-  'Brak',
-  'Lekkie',
-  'Umiarkowane',
-  'Silne',
-];
-
-const List<String> _symptomsList = [
-  'Katar',
-  'Kichanie',
-  'Zatkany nos',
-  'Łzawienie oczu',
-  'Ból gardła',
-  'Suchy kaszel',
-  'Mokry kaszel',
-  'Duszności',
-  'Zmęczenie',
-  'Ból głowy',
-  'Ból brzucha',
-  'Swędzenie skóry',
-  'Pokrzywka',
-  'Wysypka',
-];
-
-const List<String> _monthNames = [
-  'stycznia', 'lutego', 'marca', 'kwietnia', 'maja', 'czerwca',
-  'lipca', 'sierpnia', 'września', 'października', 'listopada', 'grudnia',
-];
-
-Color _severityColor(int level) {
-  switch (level) {
-    case 0: return AppColors.systemGreen;
-    case 1: return AppColors.systemGreenLight;
-    case 2: return AppColors.systemOrange;
-    case 3: return AppColors.systemRed;
-    default: return AppColors.systemGray;
-  }
-}
-
-String _severityLabel(int level) {
-  if (level >= 0 && level < _severityLevels.length) {
-    return _severityLevels[level];
-  }
-  return '';
-}
-
-String _formatDateFull(String isoDate) {
-  final parts = isoDate.split('-');
-  if (parts.length != 3) return isoDate;
-  return '${int.parse(parts[2])} ${_monthNames[int.parse(parts[1]) - 1]} ${parts[0]}';
-}
+import 'package:pylek/utils/journal_constants.dart';
 
 class EntryDetailScreen extends StatefulWidget {
   final JournalEntry entry;
@@ -121,20 +70,63 @@ class _EntryDetailScreenState extends State<EntryDetailScreen> {
     Navigator.of(context).pop(true);
   }
 
+  Future<bool> _onWillPop() async {
+    if (!_isEditing) return true;
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Odrzucić zmiany?"),
+        content: const Text("Masz niezapisane zmiany. Czy na pewno chcesz wyjść?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text("Zostań"),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text("Odrzuć", style: TextStyle(color: AppColors.systemRed)),
+          ),
+        ],
+      ),
+    );
+    return result ?? false;
+  }
+
+  Future<void> _onBackPressed() async {
+    if (!_isEditing) {
+      Navigator.of(context).pop();
+      return;
+    }
+    final navigator = Navigator.of(context);
+    final shouldPop = await _onWillPop();
+    if (shouldPop && context.mounted) {
+      navigator.pop();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    return Scaffold(
-      backgroundColor: colorScheme.background,
+    return PopScope(
+      canPop: !_isEditing,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        final shouldPop = await _onWillPop();
+        if (shouldPop && context.mounted) {
+          Navigator.of(context).pop();
+        }
+      },
+      child: Scaffold(
+      backgroundColor: colorScheme.surface,
       appBar: AppBar(
-        backgroundColor: colorScheme.background,
-        foregroundColor: colorScheme.onBackground,
-        surfaceTintColor: colorScheme.background,
+        backgroundColor: colorScheme.surface,
+        foregroundColor: colorScheme.onSurface,
+        surfaceTintColor: colorScheme.surface,
         elevation: 0,
         scrolledUnderElevation: 0,
         leading: GestureDetector(
-          onTap: () => Navigator.of(context).pop(),
+          onTap: () => _onBackPressed(),
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Icon(
@@ -146,11 +138,11 @@ class _EntryDetailScreenState extends State<EntryDetailScreen> {
         ),
         titleSpacing: 0,
         title: Text(
-          _formatDateFull(widget.entry.date),
+          formatDate(widget.entry.date),
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w700,
-            color: colorScheme.onBackground,
+            color: colorScheme.onSurface,
           ),
         ),
         actions: [
@@ -195,7 +187,7 @@ class _EntryDetailScreenState extends State<EntryDetailScreen> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: colorScheme.surface,
+                color: colorScheme.surfaceContainer,
                 borderRadius: BorderRadius.circular(22),
               ),
               child: Column(
@@ -214,11 +206,11 @@ class _EntryDetailScreenState extends State<EntryDetailScreen> {
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 4),
                       child: Text(
-                        _severityLabel(_severity),
+                        severityLabel(_severity),
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
-                          color: _severityColor(_severity),
+                          color: severityColor(_severity),
                         ),
                       ),
                     ),
@@ -226,12 +218,12 @@ class _EntryDetailScreenState extends State<EntryDetailScreen> {
                     Container(
                       padding: const EdgeInsets.all(3),
                       decoration: BoxDecoration(
-                        color: colorScheme.surfaceVariant.withOpacity(0.6),
+                        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.6),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Row(
                         children: [
-                          for (var i = 0; i < _severityLevels.length; i++) ...[
+                          for (var i = 0; i < severityLevels.length; i++) ...[
                             Expanded(
                               child: GestureDetector(
                                 onTap: () => setState(() => _severity = i),
@@ -240,13 +232,13 @@ class _EntryDetailScreenState extends State<EntryDetailScreen> {
                                   padding: const EdgeInsets.symmetric(vertical: 8),
                                   decoration: BoxDecoration(
                                     color: _severity == i
-                                        ? colorScheme.surface
+                                        ? colorScheme.surfaceContainer
                                         : Colors.transparent,
                                     borderRadius: BorderRadius.circular(10),
                                     boxShadow: _severity == i
                                         ? [
                                             BoxShadow(
-                                              color: Colors.black.withOpacity(0.04),
+                                              color: Colors.black.withValues(alpha: 0.04),
                                               blurRadius: 2,
                                               offset: const Offset(0, 1),
                                             ),
@@ -254,13 +246,13 @@ class _EntryDetailScreenState extends State<EntryDetailScreen> {
                                         : null,
                                   ),
                                   child: Text(
-                                    _severityLevels[i],
+                                    severityLevels[i],
                                     textAlign: TextAlign.center,
                                     style: TextStyle(
                                       fontSize: 11,
                                       fontWeight: FontWeight.w600,
                                       color: _severity == i
-                                          ? _severityColor(i)
+                                          ? severityColor(i)
                                           : colorScheme.onSurfaceVariant,
                                     ),
                                   ),
@@ -298,7 +290,7 @@ class _EntryDetailScreenState extends State<EntryDetailScreen> {
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
-                      children: _symptomsList.map((symptom) {
+                      children: symptomsList.map((symptom) {
                         final selected = _selectedSymptoms.contains(symptom);
                         return GestureDetector(
                           onTap: () {
@@ -317,8 +309,8 @@ class _EntryDetailScreenState extends State<EntryDetailScreen> {
                             ),
                             decoration: BoxDecoration(
                               color: selected
-                                  ? AppColors.systemOrange.withOpacity(0.08)
-                                  : colorScheme.surfaceVariant.withOpacity(0.5),
+                                  ? AppColors.systemOrange.withValues(alpha: 0.08)
+                                  : colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
                               borderRadius: BorderRadius.circular(16),
                             ),
                             child: Text(
@@ -366,7 +358,7 @@ class _EntryDetailScreenState extends State<EntryDetailScreen> {
                         "Brak notatki",
                         style: TextStyle(
                           fontSize: 14,
-                          color: colorScheme.onSurfaceVariant.withOpacity(0.6),
+                          color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
                           fontWeight: FontWeight.w400,
                         ),
                       ),
@@ -379,7 +371,7 @@ class _EntryDetailScreenState extends State<EntryDetailScreen> {
                         hintText: "Dodaj krótką notatkę...",
                         hintStyle: TextStyle(
                           fontSize: 13,
-                          color: colorScheme.onSurfaceVariant.withOpacity(0.6),
+                          color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
                           fontWeight: FontWeight.w400,
                         ),
                         border: OutlineInputBorder(
@@ -387,7 +379,7 @@ class _EntryDetailScreenState extends State<EntryDetailScreen> {
                           borderSide: BorderSide.none,
                         ),
                         filled: true,
-                        fillColor: colorScheme.surfaceVariant.withOpacity(0.35),
+                        fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
                         contentPadding: const EdgeInsets.symmetric(
                           horizontal: 14,
                           vertical: 10,
@@ -408,7 +400,7 @@ class _EntryDetailScreenState extends State<EntryDetailScreen> {
                         width: double.infinity,
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         decoration: BoxDecoration(
-                          color: colorScheme.surfaceVariant,
+                          color: colorScheme.surfaceContainerHighest,
                           borderRadius: BorderRadius.circular(14),
                         ),
                         child: Text(
@@ -429,8 +421,9 @@ class _EntryDetailScreenState extends State<EntryDetailScreen> {
 
             const SizedBox(height: 32),
           ],
-        ),
-      ),
-    );
+        ),      // ListView
+      ),        // SafeArea
+      ),        // Scaffold
+    );          // PopScope
   }
 }
