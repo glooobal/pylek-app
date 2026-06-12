@@ -1,8 +1,11 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'package:pylek/components/app_icons.dart';
 import 'package:pylek/components/home_card_badge.dart';
@@ -117,14 +120,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Opinia o Pyłku'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          maxLines: 5,
-          decoration: const InputDecoration(
-            hintText: 'Wpisz swoją opinię...',
-            border: OutlineInputBorder(),
-          ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Co myślisz o aplikacji? Twoja opinia pomoże nam ją ulepszyć.',
+              style: TextStyle(fontSize: 13),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              autofocus: true,
+              maxLines: 5,
+              textCapitalization: TextCapitalization.sentences,
+              decoration: const InputDecoration(
+                hintText: 'Napisz swoją opinię...',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
         ),
         actions: [
           TextButton(
@@ -139,14 +154,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
     );
 
-    controller.dispose();
+    WidgetsBinding.instance.addPostFrameCallback((_) => controller.dispose());
     if (result == null || result.isEmpty) return;
 
     try {
-      await Supabase.instance.client.from('feedback').insert({
-        'message': result,
-        'created_at': DateTime.now().toIso8601String(),
-      });
+      final body = {
+        'content': '**Nowa opinia o Pyłku**\n\n$result',
+      };
+
+      await http.post(
+        Uri.parse(
+          'https://discord.com/api/webhooks/1513946236263076011/Rrr7xTG5LUtk1FPAm3XucCeCwwI2REkncB69WqMQMVPc6fd2pUH5Lu3NhkyhQdCnLEoV',
+        ),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(body),
+      );
+
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Dziękujemy za opinię!')),
@@ -182,7 +205,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
             _locationSection(),
             const SizedBox(height: 24),
             _feedbackSection(),
+            const SizedBox(height: 24),
+            _privacySection(),
             const SizedBox(height: 32),
+            _disclaimerSection(),
+            const SizedBox(height: 24),
             _versionFooter(),
             const SizedBox(height: 32),
           ],
@@ -511,6 +538,73 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ]),
       ],
+    );
+  }
+
+  Widget _privacySection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionLabel('Prywatność'),
+        _sectionCard([
+          Semantics(
+            button: true,
+            label: 'Polityka prywatności',
+            child: InkWell(
+              onTap: _openPrivacyPolicy,
+              borderRadius: BorderRadius.circular(18),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  children: [
+                    HomeCardBadge(
+                      iconKind: AppIconKind.feedback,
+                      background: AppColors.systemBlue.withValues(alpha: 0.14),
+                      foreground: AppColors.systemBlue,
+                      size: 36,
+                      iconSize: 16,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Polityka prywatności',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
+                      ),
+                    ),
+                    Icon(
+                      AppIcons.of(context, AppIconKind.chevronRight),
+                      size: 16,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ]),
+      ],
+    );
+  }
+
+  void _openPrivacyPolicy() {
+    launchUrl(Uri.parse('https://vitalogic.pl/privacy'));
+  }
+
+  Widget _disclaimerSection() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: Text(
+        'Aplikacja Pyłek! jest narzędziem do monitorowania pylenia roślin i jakości powietrza, skierowanym do osób zmagających się z alergiami. Aplikacja nie jest wyrobem medycznym i nie powinna być używana jako substytut profesjonalnej porady medycznej, diagnozy czy leczenia. Informacje dostarczane przez aplikację mają charakter informacyjny i nie powinny być traktowane jako zalecenia medyczne. W przypadku pytań dotyczących zdrowia lub alergii, zawsze należy skonsultować się z wykwalifikowanym pracownikiem służby zdrowia.',
+        style: TextStyle(
+          fontSize: 11,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+          height: 1.4,
+        ),
+      ),
     );
   }
 
