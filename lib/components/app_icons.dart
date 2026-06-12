@@ -8,6 +8,7 @@ enum AppIconKind {
   chevronLeft,
   chevronRight,
   circle,
+  document,
   faceSmiling,
   faceNeutral,
   faceFrowning,
@@ -23,6 +24,7 @@ enum AppIconKind {
   pencil,
   search,
   settings,
+  star,
   tree,
 }
 
@@ -54,6 +56,8 @@ class AppIcons {
         return SFSymbols.chevron_right;
       case AppIconKind.circle:
         return SFSymbols.circle;
+      case AppIconKind.document:
+        return SFSymbols.doc_text_fill;
       case AppIconKind.faceSmiling:
         return SFSymbols.smiley_fill;
       case AppIconKind.faceNeutral:
@@ -84,6 +88,8 @@ class AppIcons {
         return SFSymbols.search;
       case AppIconKind.settings:
         return SFSymbols.gear;
+      case AppIconKind.star:
+        return SFSymbols.star_fill;
       case AppIconKind.tree:
         return SFSymbols.tree;
     }
@@ -103,6 +109,8 @@ class AppIcons {
         return Icons.chevron_right_rounded;
       case AppIconKind.circle:
         return Icons.circle_outlined;
+      case AppIconKind.document:
+        return Icons.description_rounded;
       case AppIconKind.faceSmiling:
         return Icons.emoji_emotions_rounded;
       case AppIconKind.faceNeutral:
@@ -133,6 +141,8 @@ class AppIcons {
         return Icons.search_rounded;
       case AppIconKind.settings:
         return Icons.settings_rounded;
+      case AppIconKind.star:
+        return Icons.star_rounded;
       case AppIconKind.tree:
         return Icons.park_rounded;
     }

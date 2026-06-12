@@ -1,8 +1,5 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -113,73 +110,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  Future<void> _sendFeedback() async {
-    final controller = TextEditingController();
+  Future<void> _rateApp() async {
+    final theme = Theme.of(context);
+    final isIOS = theme.platform == TargetPlatform.iOS;
+    final url = isIOS
+        ? Uri.parse('https://apps.apple.com/app/pylek/id0000000000')
+        : Uri.parse('https://play.google.com/store/apps/details?id=pl.vitalogic.pylek');
+    await launchUrl(url, mode: LaunchMode.externalApplication);
+  }
 
-    final result = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Opinia o Pyłku'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Co myślisz o aplikacji? Twoja opinia pomoże nam ją ulepszyć.',
-              style: TextStyle(fontSize: 13),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: controller,
-              autofocus: true,
-              maxLines: 5,
-              textCapitalization: TextCapitalization.sentences,
-              decoration: const InputDecoration(
-                hintText: 'Napisz swoją opinię...',
-                border: OutlineInputBorder(),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Anuluj'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(controller.text.trim()),
-            child: const Text('Wyślij'),
-          ),
-        ],
-      ),
+  Future<void> _openContact() async {
+    final uri = Uri(
+      scheme: 'mailto',
+      path: 'kontakt@vitalogic.pl',
+      queryParameters: {'subject': 'Wiadomość z Pyłka!'},
     );
-
-    WidgetsBinding.instance.addPostFrameCallback((_) => controller.dispose());
-    if (result == null || result.isEmpty) return;
-
-    try {
-      final body = {
-        'content': '**Nowa opinia o Pyłku**\n\n$result',
-      };
-
-      await http.post(
-        Uri.parse(
-          'https://discord.com/api/webhooks/1513946236263076011/Rrr7xTG5LUtk1FPAm3XucCeCwwI2REkncB69WqMQMVPc6fd2pUH5Lu3NhkyhQdCnLEoV',
-        ),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(body),
-      );
-
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Dziękujemy za opinię!')),
-      );
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Nie udało się wysłać opinii. Spróbuj ponownie.')),
-      );
-    }
+    await launchUrl(uri);
   }
 
   @override
@@ -204,9 +150,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(height: 32),
             _locationSection(),
             const SizedBox(height: 24),
-            _feedbackSection(),
-            const SizedBox(height: 24),
-            _privacySection(),
+            _aboutSection(),
             const SizedBox(height: 32),
             _disclaimerSection(),
             const SizedBox(height: 24),
@@ -289,7 +233,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _sectionLabel('Alergeny'),
+        _sectionLabel('Twoje alergeny'),
         _sectionCard([
           Text(
             'Wybrane alergeny:',
@@ -492,33 +436,33 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _feedbackSection() {
+  Widget _aboutSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _sectionLabel('Opinie'),
+        _sectionLabel('O Pyłku'),
         _sectionCard([
           Semantics(
             button: true,
-            label: 'Napisz opinię o Pyłku',
+            label: 'Oceń Pyłka',
             child: InkWell(
-              onTap: _sendFeedback,
+              onTap: _rateApp,
               borderRadius: BorderRadius.circular(18),
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 4),
                 child: Row(
                   children: [
                     HomeCardBadge(
-                      iconKind: AppIconKind.feedback,
-                      background: AppColors.systemGreen.withValues(alpha: 0.14),
-                      foreground: AppColors.systemGreen,
+                      iconKind: AppIconKind.star,
+                      background: AppColors.systemYellow.withValues(alpha: 0.14),
+                      foreground: AppColors.systemYellow,
                       size: 36,
                       iconSize: 16,
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        'Napisz opinię\u00a0o Pyłku',
+                        'Oceń Pyłka',
                         style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w600,
@@ -537,30 +481,63 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
         ]),
-      ],
-    );
-  }
-
-  Widget _privacySection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _sectionLabel('Prywatność'),
+        const SizedBox(height: 12),
         _sectionCard([
           Semantics(
             button: true,
-            label: 'Polityka prywatności',
+            label: 'Skontaktuj się z nami',
             child: InkWell(
-              onTap: _openPrivacyPolicy,
+              onTap: _openContact,
               borderRadius: BorderRadius.circular(18),
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 4),
                 child: Row(
                   children: [
                     HomeCardBadge(
-                      iconKind: AppIconKind.feedback,
+                      iconKind: AppIconKind.mail,
                       background: AppColors.systemBlue.withValues(alpha: 0.14),
                       foreground: AppColors.systemBlue,
+                      size: 36,
+                      iconSize: 16,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Skontaktuj się z nami',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
+                      ),
+                    ),
+                    Icon(
+                      AppIcons.of(context, AppIconKind.chevronRight),
+                      size: 16,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ]),
+        const SizedBox(height: 12),
+        _sectionCard([
+          Semantics(
+            button: true,
+            label: 'Polityka prywatności',
+            child: InkWell(
+              onTap: () => launchUrl(Uri.parse('https://vitalogic.pl/privacy')),
+              borderRadius: BorderRadius.circular(18),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  children: [
+                    HomeCardBadge(
+                      iconKind: AppIconKind.document,
+                      background: AppColors.systemGray.withValues(alpha: 0.14),
+                      foreground: AppColors.systemGray,
                       size: 36,
                       iconSize: 16,
                     ),
@@ -588,10 +565,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ]),
       ],
     );
-  }
-
-  void _openPrivacyPolicy() {
-    launchUrl(Uri.parse('https://vitalogic.pl/privacy'));
   }
 
   Widget _disclaimerSection() {
