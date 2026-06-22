@@ -112,9 +112,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _rateApp() async {
-    final InAppReview InAppReview = InAppReview.instance;
-    if (await InAppReview.isAvailable()) {
-      await InAppReview.requestReview();
+    final inAppReview = InAppReview.instance;
+    if (await inAppReview.isAvailable()) {
+      await inAppReview.requestReview();
     }
   }
 

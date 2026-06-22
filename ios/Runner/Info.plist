@@ -59,5 +59,7 @@
 	</array>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Pyłek używa lokalizacji, aby pokazać prognozę pylenia i jakość powietrza dla Twojej okolicy.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Pyłek używa lokalizacji, aby wyświetlać prognozę pylenia i jakość powietrza dla Twojej okolicy.</string>
 </dict>
 </plist>
