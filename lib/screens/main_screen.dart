@@ -4,7 +4,9 @@ import 'package:pylek/theme/apple_colors.dart';
 import 'package:pylek/screens/forecast_screen.dart';
 import 'package:pylek/screens/home_screen.dart';
 import 'package:pylek/screens/journal_screen.dart';
+import 'package:pylek/screens/pollutant_detail_screen.dart';
 import 'package:pylek/screens/settings_screen.dart';
+import 'package:pylek/utils/air_quality_home.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -15,16 +17,29 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int index = 0;
+  PollutantCardData? _pollutantDetail;
 
   final PageController _pageController = PageController();
 
   late final List<Widget> pages = [
-    HomeScreen(onNavigateToTab: _onTabChanged),
+    HomeScreen(
+      onNavigateToTab: _onTabChanged,
+      onShowPollutantDetail: _showPollutantDetail,
+    ),
     const ForecastScreen(),
     const JournalScreen(),
   ];
 
+  void _showPollutantDetail(PollutantCardData data) {
+    setState(() => _pollutantDetail = data);
+  }
+
+  void _closePollutantDetail() {
+    setState(() => _pollutantDetail = null);
+  }
+
   String _title(int i) {
+    if (_pollutantDetail != null) return _pollutantDetail!.title;
     switch (i) {
       case 0:
         return "Dzisiaj";
@@ -116,13 +131,18 @@ class _MainScreenState extends State<MainScreen> {
           ),
         ],
       ),
-      body: PageView(
-        controller: _pageController,
-        onPageChanged: (i) {
-          setState(() => index = i);
-        },
-        children: pages,
-      ),
+      body: _pollutantDetail != null
+          ? PollutantDetailScreen(
+              data: _pollutantDetail!,
+              onBack: _closePollutantDetail,
+            )
+          : PageView(
+              controller: _pageController,
+              onPageChanged: (i) {
+                setState(() => index = i);
+              },
+              children: pages,
+            ),
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
         currentIndex: index,

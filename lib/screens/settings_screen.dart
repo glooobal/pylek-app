@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:in_app_review/in_app_review.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:pylek/components/app_icons.dart';
@@ -111,12 +112,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _rateApp() async {
-    final theme = Theme.of(context);
-    final isIOS = theme.platform == TargetPlatform.iOS;
-    final url = isIOS
-        ? Uri.parse('https://apps.apple.com/app/pylek/id0000000000')
-        : Uri.parse('https://play.google.com/store/apps/details?id=pl.vitalogic.pylek');
-    await launchUrl(url, mode: LaunchMode.externalApplication);
+    final InAppReview InAppReview = InAppReview.instance;
+    if (await InAppReview.isAvailable()) {
+      await InAppReview.requestReview();
+    }
   }
 
   Future<void> _openContact() async {

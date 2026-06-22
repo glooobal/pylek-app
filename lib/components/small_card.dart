@@ -12,6 +12,7 @@ class SmallCard extends StatelessWidget {
   final String? fetchedAt;
   final VoidCallback? onTap;
   final bool showChevron;
+  final bool isSection;
 
   const SmallCard({
     super.key,
@@ -24,12 +25,12 @@ class SmallCard extends StatelessWidget {
     this.fetchedAt,
     this.onTap,
     this.showChevron = false,
+    this.isSection = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final isSection = showChevron;
 
     final card = Container(
       padding: const EdgeInsets.all(14),

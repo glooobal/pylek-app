@@ -38,8 +38,9 @@ String _formatFetchTime(dynamic rawValue) {
 
 class HomeScreen extends StatefulWidget {
   final ValueChanged<int>? onNavigateToTab;
+  final ValueChanged<PollutantCardData>? onShowPollutantDetail;
 
-  const HomeScreen({super.key, this.onNavigateToTab});
+  const HomeScreen({super.key, this.onNavigateToTab, this.onShowPollutantDetail});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -543,6 +544,8 @@ class _HomeScreenState extends State<HomeScreen> {
                               iconKind: pollutantCards[i].iconKind,
                               badgeForeground: pollutantCards[i].badgeForeground,
                               badgeBackground: pollutantCards[i].badgeBackground,
+                              showChevron: true,
+                              onTap: () => widget.onShowPollutantDetail?.call(pollutantCards[i]),
                             ),
                           ),
                         ],
@@ -580,7 +583,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     children: [
                       SizedBox(
                         width: cardWidth,
-                        child: SmallCard(
+                        child:   SmallCard(
                           title: "Prognoza",
                           value: "Najbliższe dni",
                           iconKind: AppIconKind.forecast,
@@ -588,12 +591,13 @@ class _HomeScreenState extends State<HomeScreen> {
                           badgeBackground: AppColors.systemTeal.withValues(alpha: 0.12),
                           onTap: () => _openDetails("forecast"),
                           showChevron: true,
+                          isSection: true,
                         ),
                       ),
                       const SizedBox(width: 12),
                       SizedBox(
                         width: cardWidth,
-                        child: SmallCard(
+                        child:   SmallCard(
                           title: "Dzienniczek",
                           value: "Zapisz wpis",
                           iconKind: AppIconKind.journal,
@@ -601,6 +605,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           badgeBackground: AppColors.systemYellow.withValues(alpha: 0.12),
                           onTap: () => _openDetails("journal"),
                           showChevron: true,
+                          isSection: true,
                         ),
                       ),
                     ],
