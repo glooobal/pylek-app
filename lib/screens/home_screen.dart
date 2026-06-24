@@ -10,6 +10,7 @@ import 'package:pylek/screens/allergen_selection_screen.dart';
 import 'package:pylek/components/insight_card.dart';
 import 'package:pylek/components/small_card.dart';
 import 'package:pylek/utils/allergen_data.dart';
+import 'package:pylek/utils/analytics_service.dart';
 import 'package:pylek/utils/pollen_home.dart';
 import 'package:pylek/utils/air_quality_home.dart';
 import 'package:pylek/utils/data_cache.dart';
@@ -248,6 +249,7 @@ class _HomeScreenState extends State<HomeScreen> {
           hasSelectedAllergens = hasSelected;
           allergenPollenCards = allergenCards;
         });
+        AnalyticsService.logPollenForecastView();
         pollenDataSet = true;
       }
     }
@@ -285,6 +287,7 @@ class _HomeScreenState extends State<HomeScreen> {
         cityName = resolvedCityName;
         loading = false;
       });
+      AnalyticsService.logAirQualityView();
     } else {
       if (!mounted) return;
       setState(() {

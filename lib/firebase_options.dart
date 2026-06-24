@@ -56,7 +56,6 @@ class DefaultFirebaseOptions {
     projectId: 'pylek-6d848',
     storageBucket: 'pylek-6d848.firebasestorage.app',
   );
-
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyBZDO1Lcbr_nh2ML55i1JH5T51rkZeY4S0',
     appId: '1:767510040364:ios:f2b93b3695d3651a01e689',
@@ -65,5 +64,4 @@ class DefaultFirebaseOptions {
     storageBucket: 'pylek-6d848.firebasestorage.app',
     iosBundleId: 'pl.vitalogic.pylek',
   );
-
 }

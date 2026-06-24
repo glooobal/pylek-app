@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:pylek/components/app_icons.dart';
 import 'package:pylek/components/home_card_badge.dart';
 import 'package:pylek/theme/apple_colors.dart';
+import 'package:pylek/utils/analytics_service.dart';
 import 'package:pylek/utils/journal_service.dart';
 import 'package:pylek/utils/journal_constants.dart';
 
@@ -143,6 +144,7 @@ class _JournalScreenState extends State<JournalScreen> {
       );
       return;
     }
+    AnalyticsService.logJournalEntryAdded();
     if (!mounted) return;
     setState(() {
       _isFormExpanded = false;

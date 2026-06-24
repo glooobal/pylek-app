@@ -7,6 +7,7 @@ import 'package:pylek/components/app_icons.dart';
 import 'package:pylek/components/home_card_badge.dart';
 import 'package:pylek/screens/main_screen.dart';
 import 'package:pylek/theme/apple_colors.dart';
+import 'package:pylek/utils/analytics_service.dart';
 import 'package:pylek/utils/allergen_data.dart';
 import 'package:pylek/utils/cities.dart';
 import 'package:pylek/utils/location_utils.dart';
@@ -244,6 +245,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     }
 
     if (!mounted) return;
+    AnalyticsService.logOnboardingCompleted();
 
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
