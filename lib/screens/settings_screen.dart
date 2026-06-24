@@ -585,8 +585,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       future: PackageInfo.fromPlatform(),
       builder: (context, snapshot) {
         final version = snapshot.data != null
-            ? 'Pyłek ${snapshot.data!.version} (${snapshot.data!.buildNumber})'
-            : 'Pyłek 1.0.0';
+            ? 'Made in Gdansk, Poland (Pyłek ${snapshot.data!.version} (${snapshot.data!.buildNumber}))'
+            : 'Made in Gdansk, Poland (Pyłek 1.0.0)';
         return Center(
           child: Text(
             version,
