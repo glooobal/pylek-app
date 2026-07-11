@@ -1,3 +1,1 @@
-# pylek
-
-A new Flutter project.
+<img src="https://github.com/glooobal/pylek-app/assets/banner.png">

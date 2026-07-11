@@ -102,68 +102,76 @@ class _MainScreenState extends State<MainScreen> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    return Scaffold(
-      backgroundColor: colorScheme.surface,
-      appBar: AppBar(
+    return PopScope(
+      canPop: _pollutantDetail == null,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && _pollutantDetail != null) {
+          _closePollutantDetail();
+        }
+      },
+      child: Scaffold(
         backgroundColor: colorScheme.surface,
-        foregroundColor: colorScheme.onSurface,
-        surfaceTintColor: colorScheme.surface,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        centerTitle: false,
-        toolbarHeight: 92,
-        title: Padding(
-          padding: const EdgeInsets.only(left: 20),
-          child: Text(
-            _title(index),
-            style: const TextStyle(
-              fontSize: 40,
-              fontWeight: FontWeight.w700,
-              height: 1.0,
+        appBar: AppBar(
+          backgroundColor: colorScheme.surface,
+          foregroundColor: colorScheme.onSurface,
+          surfaceTintColor: colorScheme.surface,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          centerTitle: false,
+          toolbarHeight: 92,
+          title: Padding(
+            padding: const EdgeInsets.only(left: 20),
+            child: Text(
+              _title(index),
+              style: const TextStyle(
+                fontSize: 40,
+                fontWeight: FontWeight.w700,
+                height: 1.0,
+              ),
             ),
           ),
+          titleSpacing: 0,
+          actions: [
+            Padding(
+              padding: const EdgeInsets.only(right: 20),
+              child: _settingsButton(),
+            ),
+          ],
         ),
-        titleSpacing: 0,
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 20),
-            child: _settingsButton(),
-          ),
-        ],
-      ),
-      body: _pollutantDetail != null
-          ? PollutantDetailScreen(
-              data: _pollutantDetail!,
-              onBack: _closePollutantDetail,
-            )
-          : PageView(
-              controller: _pageController,
-              onPageChanged: (i) {
-                setState(() => index = i);
-              },
-              children: pages,
+        body: _pollutantDetail != null
+            ? PollutantDetailScreen(
+                data: _pollutantDetail!,
+                onBack: _closePollutantDetail,
+              )
+            : PageView(
+                controller: _pageController,
+                onPageChanged: (i) {
+                  setState(() => index = i);
+                },
+                children: pages,
+              ),
+        bottomNavigationBar: BottomNavigationBar(
+          type: BottomNavigationBarType.fixed,
+          currentIndex: index,
+          onTap: _onTabChanged,
+          backgroundColor: colorScheme.surface,
+          selectedItemColor: colorScheme.onSurface,
+          unselectedItemColor: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+          items: [
+            BottomNavigationBarItem(
+              icon: Icon(AppIcons.of(context, AppIconKind.home)),
+              label: "Dzisiaj",
             ),
-      bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        currentIndex: index,
-        onTap: _onTabChanged,
-        backgroundColor: colorScheme.surface,
-        selectedItemColor: colorScheme.onSurface,
-        unselectedItemColor: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
-        items: [
-          BottomNavigationBarItem(
-            icon: Icon(AppIcons.of(context, AppIconKind.home)),
-            label: "Dzisiaj",
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(AppIcons.of(context, AppIconKind.forecast)),
-            label: "Prognoza",
-          ),  
-          BottomNavigationBarItem(
-            icon: Icon(AppIcons.of(context, AppIconKind.journal)),
-            label: "Dzienniczek",
-          ),
-        ],
+            BottomNavigationBarItem(
+              icon: Icon(AppIcons.of(context, AppIconKind.forecast)),
+              label: "Prognoza",
+            ),  
+            BottomNavigationBarItem(
+              icon: Icon(AppIcons.of(context, AppIconKind.journal)),
+              label: "Dzienniczek",
+            ),
+          ],
+        ),
       ),
     );
   }

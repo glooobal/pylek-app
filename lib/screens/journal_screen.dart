@@ -80,13 +80,23 @@ class _JournalScreenState extends State<JournalScreen> {
 
   void _goToPreviousMonth() {
     setState(() {
-      _focusedMonth = DateTime(_focusedMonth.year, _focusedMonth.month - 1, 1);
+      final m = _focusedMonth.month - 1;
+      _focusedMonth = DateTime(
+        m == 0 ? _focusedMonth.year - 1 : _focusedMonth.year,
+        m == 0 ? 12 : m,
+        1,
+      );
     });
   }
 
   void _goToNextMonth() {
     setState(() {
-      _focusedMonth = DateTime(_focusedMonth.year, _focusedMonth.month + 1, 1);
+      final m = _focusedMonth.month + 1;
+      _focusedMonth = DateTime(
+        m == 13 ? _focusedMonth.year + 1 : _focusedMonth.year,
+        m == 13 ? 1 : m,
+        1,
+      );
     });
   }
 
@@ -310,7 +320,9 @@ class _CalendarSection extends StatelessWidget {
     final today = DateTime.now();
     final year = focusedMonth.year;
     final month = focusedMonth.month;
-    final totalDays = DateTime(year, month + 1, 0).day;
+    final nextM = month == 12 ? 1 : month + 1;
+    final nextY = month == 12 ? year + 1 : year;
+    final totalDays = DateTime(nextY, nextM, 0).day;
     final offset = DateTime(year, month, 1).weekday - 1;
 
     return Container(
