@@ -11,7 +11,27 @@ serve(async (req) => {
     return new Response("Method not allowed", { status: 405 });
   }
 
-  const body: DeviceBody = await req.json();
+  let body: DeviceBody;
+  try {
+    body = await req.json();
+  } catch {
+    return new Response(
+      JSON.stringify({ error: "Invalid JSON body" }),
+      { status: 400, headers: { "Content-Type": "application/json" } },
+    );
+  }
+
+  if (typeof body.token !== "string" || body.token.length === 0) {
+    return new Response(
+      JSON.stringify({ error: "Missing or invalid 'token'" }),
+      { status: 400, headers: { "Content-Type": "application/json" } },
+    );
+  }
+
+  if (typeof body.forecast_reminder_enabled !== "boolean") {
+    body.forecast_reminder_enabled = true;
+  }
+
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
@@ -21,7 +41,6 @@ serve(async (req) => {
     {
       token: body.token,
       forecast_reminder_enabled: body.forecast_reminder_enabled,
-      updated_at: new Date().toISOString(),
     },
     { onConflict: "token" },
   );

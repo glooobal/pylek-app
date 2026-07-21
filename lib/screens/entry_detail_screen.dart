@@ -35,15 +35,22 @@ class _EntryDetailScreenState extends State<EntryDetailScreen> {
   }
 
   Future<void> _saveEdit() async {
-    final updated = JournalEntry(
-      date: widget.entry.date,
-      severity: _severity,
-      symptoms: _selectedSymptoms.toList()..sort(),
-      notes: _notesController.text.trim(),
-    );
-    await _service.updateEntry(widget.entry.date, updated);
-    if (!mounted) return;
-    Navigator.of(context).pop(true);
+    try {
+      final updated = JournalEntry(
+        date: widget.entry.date,
+        severity: _severity,
+        symptoms: _selectedSymptoms.toList()..sort(),
+        notes: _notesController.text.trim(),
+      );
+      await _service.updateEntry(widget.entry.date, updated);
+      if (!mounted) return;
+      Navigator.of(context).pop(true);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Nie udało się zapisać zmian.")),
+      );
+    }
   }
 
   Future<void> _delete() async {
@@ -65,9 +72,16 @@ class _EntryDetailScreenState extends State<EntryDetailScreen> {
       ),
     );
     if (confirmed != true) return;
-    await _service.deleteEntry(widget.entry.date);
-    if (!mounted) return;
-    Navigator.of(context).pop(true);
+    try {
+      await _service.deleteEntry(widget.entry.date);
+      if (!mounted) return;
+      Navigator.of(context).pop(true);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Nie udało się usunąć wpisu.")),
+      );
+    }
   }
 
   Future<bool> _onWillPop() async {

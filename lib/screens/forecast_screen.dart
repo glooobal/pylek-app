@@ -26,8 +26,14 @@ String _capitalize(String s) {
 }
 
 DateTime _parseDayDate(dynamic day) {
+  if (day is! Map<String, dynamic>) return DateTime.now();
   final d = day['date'];
-  return DateTime(d['year'], d['month'], d['day']);
+  if (d is! Map) return DateTime.now();
+  final year = d['year'];
+  final month = d['month'];
+  final dayOfMonth = d['day'];
+  if (year is! int || month is! int || dayOfMonth is! int) return DateTime.now();
+  return DateTime(year, month, dayOfMonth);
 }
 
 String _weekdayName(DateTime dt) {
@@ -72,7 +78,6 @@ String _severityLabel(int score) {
       ? 0
       : cards.map((c) => c.colorScore).reduce((a, b) => a > b ? a : b);
 
-  if (maxScore <= 20) return (maxScore: maxScore);
   return (maxScore: maxScore);
 }
 
@@ -188,7 +193,9 @@ class _ForecastScreenState extends State<ForecastScreen> {
             "tile_zoom": tileZoom,
           })
           .timeout(const Duration(seconds: 30));
-      pollenResData = pollenRes.data as Map<String, dynamic>?;
+      pollenResData = pollenRes.data is Map<String, dynamic>
+          ? pollenRes.data as Map<String, dynamic>
+          : null;
       if (pollenResData != null) {
         await storeCachedPollenResponse(lat, lng, pollenResData);
       }

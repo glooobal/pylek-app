@@ -10,6 +10,7 @@ import 'firebase_options.dart';
 import 'package:pylek/screens/main_screen.dart';
 import 'package:pylek/screens/onboarding_screen.dart';
 import 'package:pylek/services/fcm_service.dart';
+import 'package:pylek/services/preferences_service.dart';
 import 'package:pylek/theme/apple_colors.dart';
 import 'package:pylek/theme/app_typography.dart';
 import 'package:pylek/utils/app_config.dart';
@@ -17,14 +18,24 @@ import 'package:pylek/utils/app_config.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await Supabase.initialize(
-    url: AppConfig.supabaseUrl,
-    anonKey: AppConfig.supabaseAnonKey,
-  );
+  await PreferencesService.init();
 
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  try {
+    await Supabase.initialize(
+      url: AppConfig.supabaseUrl,
+      anonKey: AppConfig.supabaseAnonKey,
+    );
+  } catch (e) {
+    debugPrint('Supabase init failed: $e');
+  }
+
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  } catch (e) {
+    debugPrint('Firebase init failed: $e');
+  }
 
   FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
 

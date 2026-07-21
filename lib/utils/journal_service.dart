@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:pylek/services/preferences_service.dart';
 
 class JournalEntry {
   final String date;
@@ -52,8 +52,7 @@ class JournalService {
 
   Future<List<JournalEntry>> loadEntries() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final raw = prefs.getString(_key);
+      final raw = await PreferencesService.instance.getString(_key);
       if (raw == null || raw.isEmpty) return [];
       final decoded = _deobfuscate(raw);
       final list = jsonDecode(decoded) as List;
@@ -66,36 +65,55 @@ class JournalService {
   }
 
   Future<void> saveEntry(JournalEntry entry) async {
-    final entries = await loadEntries();
-    final existingIndex = entries.indexWhere((e) => e.date == entry.date);
-    if (existingIndex >= 0) {
-      entries[existingIndex] = entry;
-    } else {
-      entries.add(entry);
-    }
-    entries.sort((a, b) => b.date.compareTo(a.date));
-    await _persist(entries);
+    await PreferencesService.instance.synchronized(() async {
+      final entries = await _loadUnsafe();
+      final existingIndex = entries.indexWhere((e) => e.date == entry.date);
+      if (existingIndex >= 0) {
+        entries[existingIndex] = entry;
+      } else {
+        entries.add(entry);
+      }
+      entries.sort((a, b) => b.date.compareTo(a.date));
+      await _persist(entries);
+    });
   }
 
   Future<void> updateEntry(String date, JournalEntry updated) async {
-    final entries = await loadEntries();
-    final index = entries.indexWhere((e) => e.date == date);
-    if (index < 0) return;
-    entries[index] = updated;
-    entries.sort((a, b) => b.date.compareTo(a.date));
-    await _persist(entries);
+    await PreferencesService.instance.synchronized(() async {
+      final entries = await _loadUnsafe();
+      final index = entries.indexWhere((e) => e.date == date);
+      if (index < 0) return;
+      entries[index] = updated;
+      entries.sort((a, b) => b.date.compareTo(a.date));
+      await _persist(entries);
+    });
   }
 
   Future<void> deleteEntry(String date) async {
-    final entries = await loadEntries();
-    entries.removeWhere((e) => e.date == date);
-    await _persist(entries);
+    await PreferencesService.instance.synchronized(() async {
+      final entries = await _loadUnsafe();
+      entries.removeWhere((e) => e.date == date);
+      await _persist(entries);
+    });
+  }
+
+  Future<List<JournalEntry>> _loadUnsafe() async {
+    try {
+      final raw = await PreferencesService.instance.getString(_key);
+      if (raw == null || raw.isEmpty) return [];
+      final decoded = _deobfuscate(raw);
+      final list = jsonDecode(decoded) as List;
+      return list
+          .map((e) => JournalEntry.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } catch (_) {
+      return [];
+    }
   }
 
   Future<void> _persist(List<JournalEntry> entries) async {
-    final prefs = await SharedPreferences.getInstance();
     final raw = jsonEncode(entries.map((e) => e.toJson()).toList());
     final obscured = _obfuscate(raw);
-    await prefs.setString(_key, obscured);
+    await PreferencesService.instance.setString(_key, obscured);
   }
 }

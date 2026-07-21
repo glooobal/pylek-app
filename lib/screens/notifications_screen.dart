@@ -44,24 +44,56 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   Future<void> _toggleForecastReminder(bool enabled) async {
-    await FcmService.setEnabled(enabled);
-    setState(() => _forecastReminderEnabled = enabled);
+    try {
+      await FcmService.setEnabled(enabled);
+      if (!mounted) return;
+      setState(() => _forecastReminderEnabled = enabled);
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Nie udało się zmienić ustawień powiadomień.")),
+      );
+    }
   }
 
   Future<void> _markAllAsRead() async {
-    await _service.markAllAsRead();
-    await _load();
+    try {
+      await _service.markAllAsRead();
+      if (!mounted) return;
+      await _load();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Nie udało się oznaczyć jako przeczytane.")),
+      );
+    }
   }
 
   Future<void> _markAsRead(AppNotification notification) async {
     if (notification.isRead) return;
-    await _service.markAsRead(notification.id);
-    await _load();
+    try {
+      await _service.markAsRead(notification.id);
+      if (!mounted) return;
+      await _load();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Nie udało się zaktualizować powiadomienia.")),
+      );
+    }
   }
 
   Future<void> _delete(AppNotification notification) async {
-    await _service.deleteNotification(notification.id);
-    await _load();
+    try {
+      await _service.deleteNotification(notification.id);
+      if (!mounted) return;
+      await _load();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Nie udało się usunąć powiadomienia.")),
+      );
+    }
   }
 
   @override

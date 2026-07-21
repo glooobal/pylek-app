@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pylek/components/app_icons.dart';
+import 'package:pylek/services/preferences_service.dart';
 import 'package:pylek/theme/apple_colors.dart';
 
 enum NotificationType {
@@ -84,8 +84,7 @@ class NotificationService {
 
   Future<List<AppNotification>> loadNotifications() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final raw = prefs.getString(_key);
+      final raw = await PreferencesService.instance.getString(_key);
       if (raw == null || raw.isEmpty) return [];
       final list = jsonDecode(raw) as List;
       return list
@@ -97,36 +96,56 @@ class NotificationService {
   }
 
   Future<void> _persist(List<AppNotification> notifications) async {
-    final prefs = await SharedPreferences.getInstance();
     final raw = jsonEncode(notifications.map((e) => e.toJson()).toList());
-    await prefs.setString(_key, raw);
+    await PreferencesService.instance.setString(_key, raw);
   }
 
   Future<void> markAsRead(String id) async {
-    final notifications = await loadNotifications();
-    final index = notifications.indexWhere((n) => n.id == id);
-    if (index < 0) return;
-    notifications[index].isRead = true;
-    await _persist(notifications);
+    await PreferencesService.instance.synchronized(() async {
+      final notifications = await _loadUnsafe();
+      final index = notifications.indexWhere((n) => n.id == id);
+      if (index < 0) return;
+      notifications[index].isRead = true;
+      await _persist(notifications);
+    });
   }
 
   Future<void> markAllAsRead() async {
-    final notifications = await loadNotifications();
-    for (final n in notifications) {
-      n.isRead = true;
-    }
-    await _persist(notifications);
+    await PreferencesService.instance.synchronized(() async {
+      final notifications = await _loadUnsafe();
+      for (final n in notifications) {
+        n.isRead = true;
+      }
+      await _persist(notifications);
+    });
   }
 
   Future<void> deleteNotification(String id) async {
-    final notifications = await loadNotifications();
-    notifications.removeWhere((n) => n.id == id);
-    await _persist(notifications);
+    await PreferencesService.instance.synchronized(() async {
+      final notifications = await _loadUnsafe();
+      notifications.removeWhere((n) => n.id == id);
+      await _persist(notifications);
+    });
   }
 
-  void addNotification(AppNotification notification) async {
-    final notifications = await loadNotifications();
-    notifications.insert(0, notification);
-    await _persist(notifications);
+  Future<void> addNotification(AppNotification notification) async {
+    await PreferencesService.instance.synchronized(() async {
+      final notifications = await _loadUnsafe();
+      notifications.insert(0, notification);
+      await _persist(notifications);
+    });
+  }
+
+  Future<List<AppNotification>> _loadUnsafe() async {
+    try {
+      final raw = await PreferencesService.instance.getString(_key);
+      if (raw == null || raw.isEmpty) return [];
+      final list = jsonDecode(raw) as List;
+      return list
+          .map((e) => AppNotification.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } catch (_) {
+      return [];
+    }
   }
 }

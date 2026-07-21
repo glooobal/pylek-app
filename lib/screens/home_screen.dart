@@ -329,6 +329,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
 
+    if (!mounted) return;
     _init();
   }
 

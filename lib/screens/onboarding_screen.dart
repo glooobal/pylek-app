@@ -722,42 +722,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           child: AnimatedSwitcher(
             duration: const Duration(milliseconds: 220),
             child: switch (_step) {
-              _OnboardingStep.requestingLocation => Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const CircularProgressIndicator(),
-                      const SizedBox(height: 24),
-                      Text(
-                        "Szukam Twojej lokalizacji...",
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.primaryText(_brightness),
-                        ),
-                      ),
-                      const SizedBox(height: 48),
-                      GestureDetector(
-                        onTap: _skipLocation,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                          decoration: BoxDecoration(
-                            color: AppColors.surfaceVariant(_brightness),
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          child: Text(
-                            'Pomiń',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.primaryText(_brightness),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
               _OnboardingStep.citySelection => KeyedSubtree(
                   key: const ValueKey('city'),
                   child: _citySelectionView(context),
@@ -766,6 +730,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   key: const ValueKey('allergen'),
                   child: _allergenSelectionView(context),
                 ),
+              _OnboardingStep.requestingLocation => const SizedBox.shrink(),
             },
           ),
         ),

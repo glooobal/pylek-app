@@ -1,6 +1,7 @@
 import 'dart:convert';
-
 import 'package:shared_preferences/shared_preferences.dart';
+
+import 'package:pylek/services/preferences_service.dart';
 
 const Duration _cacheTtl = Duration(minutes: 30);
 
@@ -12,9 +13,11 @@ const String _airKey = 'cache_air_response';
 const String _airLatKey = 'cache_air_lat';
 const String _airLngKey = 'cache_air_lng';
 
+SharedPreferences get _prefs => PreferencesService.instance.raw;
+
 Future<Map<String, dynamic>?> cachedPollenResponse(
     double lat, double lng) async {
-  final prefs = await SharedPreferences.getInstance();
+  final prefs = _prefs;
 
   final storedLat = prefs.getDouble(_pollenLatKey);
   final storedLng = prefs.getDouble(_pollenLngKey);
@@ -36,7 +39,7 @@ Future<Map<String, dynamic>?> cachedPollenResponse(
 
 Future<Map<String, dynamic>?> staleCachedPollenResponse(
     double lat, double lng) async {
-  final prefs = await SharedPreferences.getInstance();
+  final prefs = _prefs;
 
   final storedLat = prefs.getDouble(_pollenLatKey);
   final storedLng = prefs.getDouble(_pollenLngKey);
@@ -50,8 +53,7 @@ Future<Map<String, dynamic>?> staleCachedPollenResponse(
   return _readPollenCache(prefs);
 }
 
-Future<Map<String, dynamic>?> _readPollenCache(
-    SharedPreferences prefs) async {
+Future<Map<String, dynamic>?> _readPollenCache(SharedPreferences prefs) async {
   final raw = prefs.getString(_pollenKey);
   if (raw == null) return null;
 
@@ -65,16 +67,20 @@ Future<Map<String, dynamic>?> _readPollenCache(
 Future<void> storeCachedPollenResponse(
     double lat, double lng, dynamic response) async {
   if (response is! Map) return;
-  final prefs = await SharedPreferences.getInstance();
-  await prefs.setString(_pollenKey, jsonEncode(response));
-  await prefs.setDouble(_pollenLatKey, lat);
-  await prefs.setDouble(_pollenLngKey, lng);
-  await prefs.setString(
-      '${_pollenKey}_cached_at', DateTime.now().toIso8601String());
+  try {
+    final prefs = _prefs;
+    await prefs.setString(_pollenKey, jsonEncode(response));
+    await prefs.setDouble(_pollenLatKey, lat);
+    await prefs.setDouble(_pollenLngKey, lng);
+    await prefs.setString(
+        '${_pollenKey}_cached_at', DateTime.now().toIso8601String());
+  } catch (_) {
+    // Cache write failure is non-fatal
+  }
 }
 
 Future<Map<String, dynamic>?> cachedAirResponse(double lat, double lng) async {
-  final prefs = await SharedPreferences.getInstance();
+  final prefs = _prefs;
 
   final storedLat = prefs.getDouble(_airLatKey);
   final storedLng = prefs.getDouble(_airLngKey);
@@ -95,7 +101,7 @@ Future<Map<String, dynamic>?> cachedAirResponse(double lat, double lng) async {
 }
 
 Future<Map<String, dynamic>?> staleCachedAirResponse(double lat, double lng) async {
-  final prefs = await SharedPreferences.getInstance();
+  final prefs = _prefs;
 
   final storedLat = prefs.getDouble(_airLatKey);
   final storedLng = prefs.getDouble(_airLngKey);
@@ -123,10 +129,14 @@ Future<Map<String, dynamic>?> _readAirCache(SharedPreferences prefs) async {
 Future<void> storeCachedAirResponse(
     double lat, double lng, dynamic response) async {
   if (response is! Map) return;
-  final prefs = await SharedPreferences.getInstance();
-  await prefs.setString(_airKey, jsonEncode(response));
-  await prefs.setDouble(_airLatKey, lat);
-  await prefs.setDouble(_airLngKey, lng);
-  await prefs.setString(
-      '${_airKey}_cached_at', DateTime.now().toIso8601String());
+  try {
+    final prefs = _prefs;
+    await prefs.setString(_airKey, jsonEncode(response));
+    await prefs.setDouble(_airLatKey, lat);
+    await prefs.setDouble(_airLngKey, lng);
+    await prefs.setString(
+        '${_airKey}_cached_at', DateTime.now().toIso8601String());
+  } catch (_) {
+    // Cache write failure is non-fatal
+  }
 }
