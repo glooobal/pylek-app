@@ -21,6 +21,7 @@ enum AppIconKind {
   grass,
   mail,
   myLocation,
+  notifications,
   pencil,
   search,
   settings,
@@ -82,6 +83,8 @@ class AppIcons {
         return SFSymbols.envelope_fill;
       case AppIconKind.myLocation:
         return SFSymbols.location_north_fill;
+      case AppIconKind.notifications:
+        return SFSymbols.bell_fill;
       case AppIconKind.pencil:
         return SFSymbols.square_pencil;
       case AppIconKind.search:
@@ -135,6 +138,8 @@ class AppIcons {
         return Icons.mail_rounded;
       case AppIconKind.myLocation:
         return Icons.my_location_rounded;
+      case AppIconKind.notifications:
+        return Icons.notifications_rounded;
       case AppIconKind.pencil:
         return Icons.edit_rounded;
       case AppIconKind.search:

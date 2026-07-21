@@ -9,6 +9,7 @@ import 'firebase_options.dart';
 
 import 'package:pylek/screens/main_screen.dart';
 import 'package:pylek/screens/onboarding_screen.dart';
+import 'package:pylek/services/fcm_service.dart';
 import 'package:pylek/theme/apple_colors.dart';
 import 'package:pylek/theme/app_typography.dart';
 import 'package:pylek/utils/app_config.dart';
@@ -35,6 +36,8 @@ void main() async {
     );
     return true;
   };
+
+  await FcmService.init();
 
   runApp(const MyApp());
 }

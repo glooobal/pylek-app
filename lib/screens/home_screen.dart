@@ -311,9 +311,8 @@ class _HomeScreenState extends State<HomeScreen> {
         widget.onNavigateToTab?.call(2);
         break;
       case 'alerts':
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Alerty będą dostępne wkrótce.')),
-        );
+      case 'notifications':
+        widget.onNavigateToTab?.call(3);
         break;
     }
   }
@@ -607,6 +606,20 @@ class _HomeScreenState extends State<HomeScreen> {
                           badgeForeground: AppColors.systemYellow,
                           badgeBackground: AppColors.systemYellow.withValues(alpha: 0.12),
                           onTap: () => _openDetails("journal"),
+                          showChevron: true,
+                          isSection: true,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      SizedBox(
+                        width: cardWidth,
+                        child:   SmallCard(
+                          title: "Powiadomienia",
+                          value: "Sprawdź",
+                          iconKind: AppIconKind.alerts,
+                          badgeForeground: AppColors.systemOrange,
+                          badgeBackground: AppColors.systemOrange.withValues(alpha: 0.12),
+                          onTap: () => _openDetails("notifications"),
                           showChevron: true,
                           isSection: true,
                         ),

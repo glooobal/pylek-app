@@ -4,6 +4,7 @@ import 'package:pylek/theme/apple_colors.dart';
 import 'package:pylek/screens/forecast_screen.dart';
 import 'package:pylek/screens/home_screen.dart';
 import 'package:pylek/screens/journal_screen.dart';
+import 'package:pylek/screens/notifications_screen.dart';
 import 'package:pylek/screens/pollutant_detail_screen.dart';
 import 'package:pylek/screens/settings_screen.dart';
 import 'package:pylek/utils/air_quality_home.dart';
@@ -28,6 +29,7 @@ class _MainScreenState extends State<MainScreen> {
     ),
     const ForecastScreen(),
     const JournalScreen(),
+    const NotificationsScreen(),
   ];
 
   void _showPollutantDetail(PollutantCardData data) {
@@ -47,6 +49,8 @@ class _MainScreenState extends State<MainScreen> {
         return "Prognoza";
       case 2:
         return "Dzienniczek";
+      case 3:
+        return "Powiadomienia";
       default:
         return "";
     }
@@ -169,6 +173,10 @@ class _MainScreenState extends State<MainScreen> {
             BottomNavigationBarItem(
               icon: Icon(AppIcons.of(context, AppIconKind.journal)),
               label: "Dzienniczek",
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(AppIcons.of(context, AppIconKind.notifications)),
+              label: "Powiadomienia",
             ),
           ],
         ),
